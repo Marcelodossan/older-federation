@@ -38,7 +38,7 @@ export default function LoginPage() {
     localStorage.setItem("jogadorLogado", JSON.stringify(usuarioLogado));
     localStorage.setItem("sessaoAtiva", "true");
 
-    window.location.href = "/";
+    window.location.href = "/dashboard";
   }
 
   return (

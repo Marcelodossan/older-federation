@@ -149,16 +149,19 @@ export default function DashboardPage() {
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const logado = localStorage.getItem("logado");
-    const usuarioLogado = localStorage.getItem("usuarioLogado");
+    const logado = localStorage.getItem("sessaoAtiva");
 
-    if (logado !== "true" || !usuarioLogado) {
+    if (logado !== "true") {
       window.location.href = "/login";
       return;
     }
 
-    const usuarioAtual: Usuario = JSON.parse(usuarioLogado);
-    setUsuario(usuarioAtual);
+    const usuarioLogado = localStorage.getItem("jogadorLogado");
+
+    if (usuarioLogado) {
+      const usuarioAtual: Usuario = JSON.parse(usuarioLogado);
+      setUsuario(usuarioAtual);
+    }
 
     const jogadoresSalvos = JSON.parse(localStorage.getItem("jogadores") || "[]");
     const equipesSalvas = JSON.parse(localStorage.getItem("equipes") || "[]");
@@ -190,8 +193,8 @@ export default function DashboardPage() {
   }, []);
 
   function handleLogout() {
-    localStorage.removeItem("logado");
-    localStorage.removeItem("usuarioLogado");
+    localStorage.removeItem("sessaoAtiva");
+    localStorage.removeItem("jogadorLogado");
     window.location.href = "/login";
   }
 
