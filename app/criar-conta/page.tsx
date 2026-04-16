@@ -26,7 +26,8 @@ export default function CriarContaPage() {
 
     const jaExiste = usuarios.some(
       (u: any) =>
-        String(u.email || "").toLowerCase().trim() === email.toLowerCase().trim()
+        String(u.email || "").toLowerCase().trim() ===
+        email.toLowerCase().trim()
     );
 
     if (jaExiste) {
@@ -39,6 +40,7 @@ export default function CriarContaPage() {
       nome,
       email,
       senha,
+      foto: null,
       idOnline: nome,
       posicao: "GOL",
       numero: "1",
@@ -48,16 +50,17 @@ export default function CriarContaPage() {
       clubeAtualId: "",
       clubeAtualNome: "",
       criadoPor: email,
-      isAdmin: email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase(),
+      isAdmin:
+        email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase(),
     };
 
     const novosUsuarios = [...usuarios, novoUsuario];
-    localStorage.setItem("usuarios", JSON.stringify(novosUsuarios));
 
+    localStorage.setItem("usuarios", JSON.stringify(novosUsuarios));
     localStorage.setItem("jogadorLogado", JSON.stringify(novoUsuario));
     localStorage.setItem("sessaoAtiva", "true");
 
-    window.location.href = "/";
+    window.location.href = "/dashboard";
   }
 
   return (
