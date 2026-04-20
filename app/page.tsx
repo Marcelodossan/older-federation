@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function HomePage() {
+  const router = useRouter();
+
   useEffect(() => {
     async function verificarSessao() {
       try {
@@ -16,27 +19,38 @@ export default function HomePage() {
 
         if (error) {
           console.error(error);
-          window.location.href = "/login";
+          router.replace("/login");
           return;
         }
 
         if (session?.user) {
-          localStorage.setItem("sessaoAtiva", "true");
-          window.location.href = "/dashboard";
+          router.replace("/dashboard");
           return;
         }
 
-        localStorage.removeItem("sessaoAtiva");
-        localStorage.removeItem("jogadorLogado");
-        window.location.href = "/login";
+        router.replace("/login");
       } catch (error) {
         console.error(error);
-        window.location.href = "/login";
+        router.replace("/login");
       }
     }
 
     verificarSessao();
-  }, []);
+  }, [router]);
 
-  return null;
+  return (
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#000",
+        color: "#fff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
+      Carregando...
+    </main>
+  );
 }
