@@ -102,7 +102,8 @@ export default function DashboardPage() {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [menuAberto, setMenuAberto] = useState(false);
   const [jogador, setJogador] = useState<JogadorUI | null>(null);
-  const [equipe, setEquipe] = useState<EquipeUI | null>(null);
+  const [minhaEquipe, setMinhaEquipe] = useState<EquipeUI | null>(null);
+  const [topEquipe, setTopEquipe] = useState<EquipeUI | null>(null);
   const [campeonatos, setCampeonatos] = useState<Campeonato[]>([]);
   const [carregando, setCarregando] = useState(true);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -177,21 +178,37 @@ export default function DashboardPage() {
           setJogador(null);
         }
 
-        const { data: equipesBanco, error: equipesError } = await supabase
-          .from("equipes")
-          .select("*")
-          .eq("criadoPor", user.id)
-          .order("created_at", { ascending: false });
+        const { data: minhasEquipesBanco, error: minhasEquipesError } =
+          await supabase
+            .from("equipes")
+            .select("*")
+            .eq("criadoPor", user.id)
+            .order("created_at", { ascending: false });
 
-        if (equipesError) {
-          console.error(equipesError);
+        if (minhasEquipesError) {
+          console.error(minhasEquipesError);
         }
 
-        if (Array.isArray(equipesBanco) && equipesBanco.length > 0) {
-          const equipeNormalizada = normalizarEquipe(equipesBanco[0]);
-          setEquipe(equipeNormalizada);
+        if (Array.isArray(minhasEquipesBanco) && minhasEquipesBanco.length > 0) {
+          setMinhaEquipe(normalizarEquipe(minhasEquipesBanco[0]));
         } else {
-          setEquipe(null);
+          setMinhaEquipe(null);
+        }
+
+        const { data: todasEquipesBanco, error: todasEquipesError } =
+          await supabase
+            .from("equipes")
+            .select("*")
+            .order("created_at", { ascending: false });
+
+        if (todasEquipesError) {
+          console.error(todasEquipesError);
+        }
+
+        if (Array.isArray(todasEquipesBanco) && todasEquipesBanco.length > 0) {
+          setTopEquipe(normalizarEquipe(todasEquipesBanco[0]));
+        } else {
+          setTopEquipe(null);
         }
 
         const { data: campeonatosBanco, error: campeonatosError } =
@@ -240,7 +257,7 @@ export default function DashboardPage() {
   }
 
   function handleEditarClube() {
-    if (!equipe?.id) return;
+    if (!minhaEquipe?.id) return;
     router.push("/criar-equipe");
   }
 
@@ -502,7 +519,7 @@ export default function DashboardPage() {
                     </Link>
                   )}
 
-                  {equipe ? (
+                  {minhaEquipe ? (
                     <button
                       onClick={handleEditarClube}
                       style={{
@@ -816,7 +833,7 @@ export default function DashboardPage() {
                     border: "1px solid #1f1f1f",
                   }}
                 >
-                  {equipe ? (
+                  {topEquipe ? (
                     <>
                       <div
                         style={{
@@ -832,10 +849,10 @@ export default function DashboardPage() {
                           border: "1px solid #222",
                         }}
                       >
-                        {equipe.imagem ? (
+                        {topEquipe.imagem ? (
                           <img
-                            src={equipe.imagem}
-                            alt={equipe.nome}
+                            src={topEquipe.imagem}
+                            alt={topEquipe.nome}
                             style={{
                               width: "100%",
                               height: "100%",
@@ -864,11 +881,11 @@ export default function DashboardPage() {
                             color: "white",
                           }}
                         >
-                          {equipe.nome}
+                          {topEquipe.nome}
                         </div>
 
                         <div style={{ color: "#bdbdbd", fontSize: "14px" }}>
-                          {equipe.pais} • {equipe.plataforma}
+                          {topEquipe.pais} • {topEquipe.plataforma}
                         </div>
                       </div>
 
@@ -883,25 +900,25 @@ export default function DashboardPage() {
                       >
                         <div>
                           <div style={{ fontSize: 16, fontWeight: 800 }}>
-                            {equipe.vitorias}
+                            {topEquipe.vitorias}
                           </div>
                           <div style={{ fontSize: 12, color: "#bdbdbd" }}>V</div>
                         </div>
                         <div>
                           <div style={{ fontSize: 16, fontWeight: 800 }}>
-                            {equipe.empates}
+                            {topEquipe.empates}
                           </div>
                           <div style={{ fontSize: 12, color: "#bdbdbd" }}>E</div>
                         </div>
                         <div>
                           <div style={{ fontSize: 16, fontWeight: 800 }}>
-                            {equipe.derrotas}
+                            {topEquipe.derrotas}
                           </div>
                           <div style={{ fontSize: 12, color: "#bdbdbd" }}>D</div>
                         </div>
                         <div>
                           <div style={{ fontSize: 16, fontWeight: 800 }}>
-                            {equipe.titulos}
+                            {topEquipe.titulos}
                           </div>
                           <div style={{ fontSize: 12, color: "#bdbdbd" }}>T</div>
                         </div>
