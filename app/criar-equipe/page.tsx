@@ -32,7 +32,7 @@ type Jogador = {
   clubeAtualNome: string;
   criadoPor: string;
   isAdmin?: boolean;
-  email?: string;
+  user_id?: string;
   estatisticas?: EstatisticasJogador;
 };
 
@@ -191,7 +191,7 @@ function normalizarJogador(item: any): Jogador {
     clubeAtualId: String(item.clubeAtualId || ""),
     clubeAtualNome: item.clubeAtualNome || "",
     criadoPor: item.criadoPor || "",
-    email: item.email || "",
+    user_id: item.user_id || "",
     estatisticas: item.estatisticas || {
       gols: 0,
       assistencias: 0,
@@ -207,19 +207,19 @@ function normalizarCampeonato(item: any): Campeonato {
     id: String(item.id),
     titulo: item.titulo || item.nome || "Campeonato",
     imagem: item.imagem || "",
-    numeroParticipantes: Number(item.numeroParticipantes || 0),
+    numeroParticipantes: Number(
+      item.numeroParticipantes || item.numeroparticipantes || 0
+    ),
     formato: item.formato || "eliminatorias",
-    criadoPor: item.criadoPor || "",
-    dataCriacao: item.dataCriacao || item.created_at || "",
+    criadoPor: item.criadoPor || item.criadopor || "",
+    dataCriacao: item.dataCriacao || item.datacriacao || item.created_at || "",
     times: Array.isArray(item.times) ? item.times : [],
-    campeaoId: item.campeaoId || "",
+    campeaoId: item.campeaoId || item.campeaoid || "",
     jogos: Array.isArray(item.jogos) ? item.jogos : [],
   };
 }
 
 export default function CriarEquipePage() {
-  const supabase = createClient();
-
   const [jogadorLogado, setJogadorLogado] = useState<JogadorLogado | null>(null);
   const [authUserId, setAuthUserId] = useState<string>("");
   const [jogadores, setJogadores] = useState<Jogador[]>([]);
@@ -250,6 +250,8 @@ export default function CriarEquipePage() {
 
   useEffect(() => {
     async function carregarDados() {
+      const supabase = createClient();
+
       try {
         setCarregando(true);
         setMensagem("");
@@ -270,7 +272,8 @@ export default function CriarEquipePage() {
           return;
         }
 
-        const isAdmin = normalizarTexto(user.email) === normalizarTexto(ADMIN_EMAIL);
+        const isAdmin =
+          normalizarTexto(user.email) === normalizarTexto(ADMIN_EMAIL);
 
         const usuarioLogado: JogadorLogado = {
           id: user.id,
@@ -320,7 +323,9 @@ export default function CriarEquipePage() {
           setPlataforma(equipeDoUsuario.plataforma || "PC");
           setImagem(equipeDoUsuario.imagem || "");
           setInstagram(equipeDoUsuario.instagram || "");
-          setElenco(Array.isArray(equipeDoUsuario.elenco) ? equipeDoUsuario.elenco : []);
+          setElenco(
+            Array.isArray(equipeDoUsuario.elenco) ? equipeDoUsuario.elenco : []
+          );
 
           const donoDaEquipe =
             String(equipeDoUsuario.user_id || equipeDoUsuario.criadoPor || "") ===
@@ -380,7 +385,7 @@ export default function CriarEquipePage() {
     }
 
     carregarDados();
-  }, [supabase]);
+  }, []);
 
   const equipeAtual = useMemo(() => {
     if (!equipeId) return null;
@@ -500,6 +505,8 @@ export default function CriarEquipePage() {
   }
 
   async function handleSalvarEquipe() {
+    const supabase = createClient();
+
     try {
       setMensagem("");
 
@@ -582,7 +589,7 @@ export default function CriarEquipePage() {
 
       if (error) {
         console.error(error);
-        setMensagem("Erro ao salvar clube no banco.");
+        setMensagem(`Erro ao salvar clube no banco: ${error.message}`);
         return;
       }
 
@@ -614,6 +621,8 @@ export default function CriarEquipePage() {
   }
 
   async function criarJogadorNoClube() {
+    const supabase = createClient();
+
     try {
       setMensagem("");
 
@@ -649,7 +658,7 @@ export default function CriarEquipePage() {
         !posicaoJogador.trim() ||
         !numeroJogador.trim()
       ) {
-        setMensagem("Preencha nome, ID online, posição e número da camisa.");
+        setMensagem("Preencha ID online, nome, posição e número da camisa.");
         return;
       }
 
@@ -714,7 +723,7 @@ export default function CriarEquipePage() {
         clubeAtualId: idClubeFinal,
         clubeAtualNome: nome.trim(),
         criadoPor: user.id,
-        email: user.email || jogadorLogado?.email || "",
+        user_id: user.id,
         estatisticas: {
           gols: 0,
           assistencias: 0,
@@ -746,13 +755,13 @@ export default function CriarEquipePage() {
         clubeAtualId: novoJogador.clubeAtualId,
         clubeAtualNome: novoJogador.clubeAtualNome,
         criadoPor: novoJogador.criadoPor,
-        email: novoJogador.email,
+        user_id: novoJogador.user_id,
         estatisticas: novoJogador.estatisticas,
       });
 
       if (erroJogador) {
         console.error(erroJogador);
-        setMensagem("Erro ao salvar jogador no banco.");
+        setMensagem(`Erro ao salvar jogador no banco: ${erroJogador.message}`);
         return;
       }
 
@@ -791,7 +800,7 @@ export default function CriarEquipePage() {
 
       if (erroEquipe) {
         console.error(erroEquipe);
-        setMensagem("Jogador salvo, mas houve erro ao atualizar o elenco.");
+        setMensagem(`Jogador salvo, mas houve erro ao atualizar o elenco: ${erroEquipe.message}`);
         return;
       }
 
@@ -827,6 +836,8 @@ export default function CriarEquipePage() {
   }
 
   async function removerJogadorDoElenco(jogadorId: string) {
+    const supabase = createClient();
+
     try {
       if (!equipeId) return;
 
@@ -845,7 +856,7 @@ export default function CriarEquipePage() {
 
       if (erroDeleteJogador) {
         console.error(erroDeleteJogador);
-        setMensagem("Erro ao remover jogador do banco.");
+        setMensagem(`Erro ao remover jogador do banco: ${erroDeleteJogador.message}`);
         return;
       }
 
@@ -890,7 +901,7 @@ export default function CriarEquipePage() {
 
       if (erroEquipe) {
         console.error(erroEquipe);
-        setMensagem("Jogador removido, mas erro ao atualizar elenco.");
+        setMensagem(`Jogador removido, mas erro ao atualizar elenco: ${erroEquipe.message}`);
         return;
       }
 
@@ -1203,22 +1214,22 @@ export default function CriarEquipePage() {
                         }}
                       >
                         <div>
+                          <label style={labelStyle}>ID online</label>
+                          <input
+                            value={idOnlineJogador}
+                            onChange={(e) => setIdOnlineJogador(e.target.value)}
+                            style={inputStyle}
+                            placeholder="ID online do jogador"
+                          />
+                        </div>
+
+                        <div>
                           <label style={labelStyle}>Nome</label>
                           <input
                             value={nomeJogador}
                             onChange={(e) => setNomeJogador(e.target.value)}
                             style={inputStyle}
                             placeholder="Nome do jogador"
-                          />
-                        </div>
-
-                        <div>
-                          <label style={labelStyle}>ID online</label>
-                          <input
-                            value={idOnlineJogador}
-                            onChange={(e) => setIdOnlineJogador(e.target.value)}
-                            style={inputStyle}
-                            placeholder="ID online"
                           />
                         </div>
 
@@ -1311,7 +1322,7 @@ export default function CriarEquipePage() {
                               key={item.id}
                               style={{
                                 borderRadius: 12,
-                                                               border: "1px solid #191919",
+                                border: "1px solid #191919",
                                 background: "#050505",
                                 overflow: "hidden",
                               }}
@@ -1345,6 +1356,15 @@ export default function CriarEquipePage() {
 
                               <div style={{ padding: 10, textAlign: "center" }}>
                                 <div style={{ fontWeight: 700 }}>{item.nome}</div>
+                                <div
+                                  style={{
+                                    color: "#aaa",
+                                    fontSize: 13,
+                                    marginTop: 4,
+                                  }}
+                                >
+                                  {item.idOnline}
+                                </div>
                                 <div
                                   style={{
                                     color: "#aaa",
