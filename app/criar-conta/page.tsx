@@ -29,21 +29,23 @@ export default function CriarContaPage() {
 
       const supabase = createClient();
 
+      const emailLimpo = email.trim().toLowerCase();
+      const nomeLimpo = nome.trim();
+
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: emailLimpo,
         password: senha,
         options: {
           data: {
-            nome: nome.trim(),
-            idOnline: nome.trim(),
-            isAdmin:
-              email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase(),
+            nome: nomeLimpo,
+            idOnline: nomeLimpo,
+            isAdmin: emailLimpo === ADMIN_EMAIL.toLowerCase(),
           },
         },
       });
 
       if (error) {
-        console.error(error);
+        console.error("Erro no signUp:", error);
         alert(error.message);
         return;
       }
@@ -58,60 +60,37 @@ export default function CriarContaPage() {
 
       const novoUsuario = {
         id: user.id,
-        nome: nome.trim(),
-        nomeCompleto: nome.trim(),
-        email: user.email || email.trim(),
-        foto: null,
-        idOnline: nome.trim(),
-        posicao: "GOL",
-        numero: "1",
-        imagem: "",
-        overall: 55,
-        valor: 550000,
-        pais: "Brasil",
-        clubeAtualId: "",
-        clubeAtualNome: "",
-        criadoPor: user.id,
-        isAdmin:
-          String(user.email || "").toLowerCase().trim() ===
-          ADMIN_EMAIL.toLowerCase(),
+        nome: nomeLimpo,
+        email: user.email || emailLimpo,
       };
 
       const { error: perfilError } = await supabase.from("usuarios").upsert(
         {
           id: novoUsuario.id,
           nome: novoUsuario.nome,
-          nomeCompleto: novoUsuario.nomeCompleto,
           email: novoUsuario.email,
-          foto: novoUsuario.foto,
-          idOnline: novoUsuario.idOnline,
-          posicao: novoUsuario.posicao,
-          numero: novoUsuario.numero,
-          imagem: novoUsuario.imagem,
-          overall: novoUsuario.overall,
-          valor: novoUsuario.valor,
-          pais: novoUsuario.pais,
-          clubeAtualId: novoUsuario.clubeAtualId,
-          clubeAtualNome: novoUsuario.clubeAtualNome,
-          criadoPor: novoUsuario.criadoPor,
-          isAdmin: novoUsuario.isAdmin,
         },
         { onConflict: "id" }
       );
 
       if (perfilError) {
-        console.error(perfilError);
-        alert("Conta criada, mas houve erro ao salvar perfil no banco.");
+        console.error("Erro ao salvar perfil:", perfilError);
+        alert(`Conta criada, mas houve erro ao salvar perfil no banco: ${perfilError.message}`);
         window.location.href = "/login";
         return;
       }
 
-      localStorage.setItem("jogadorLogado", JSON.stringify(novoUsuario));
+      localStorage.setItem("jogadorLogado", JSON.stringify({
+        id: user.id,
+        nome: nomeLimpo,
+        email: user.email || emailLimpo,
+        isAdmin: emailLimpo === ADMIN_EMAIL.toLowerCase(),
+      }));
       localStorage.setItem("sessaoAtiva", "true");
 
       window.location.href = "/dashboard";
     } catch (err) {
-      console.error(err);
+      console.error("Erro inesperado:", err);
       alert("Erro ao criar conta");
     } finally {
       setCarregando(false);
