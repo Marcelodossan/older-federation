@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { calculateOverall, formatMoney, parseMoney } from "@/lib/ranking";
 
 type Jogador = {
@@ -20,12 +21,48 @@ export default function JogadoresPage() {
   const [jogadores, setJogadores] = useState<Jogador[]>([]);
   const [busca, setBusca] = useState("");
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
-    const jogadoresSalvos = localStorage.getItem("jogadores");
-    if (jogadoresSalvos) {
-      setJogadores(JSON.parse(jogadoresSalvos));
+    async function carregarJogadores() {
+      try {
+        setCarregando(true);
+
+        const supabase = createClient();
+
+        const { data, error } = await supabase
+          .from("jogadores")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          console.error(error);
+          setJogadores([]);
+          return;
+        }
+
+        const listaNormalizada: Jogador[] = Array.isArray(data)
+          ? data.map((item: any) => ({
+              id: item.id,
+              nome: item.nome || "Jogador",
+              nomeCompleto: item.nomeCompleto || item.nome || "Jogador",
+              idOnline: item.idOnline || "",
+              pais: item.pais || "",
+              valor: item.valor || 0,
+              imagem: item.imagem || "",
+            }))
+          : [];
+
+        setJogadores(listaNormalizada);
+      } catch (error) {
+        console.error(error);
+        setJogadores([]);
+      } finally {
+        setCarregando(false);
+      }
     }
+
+    carregarJogadores();
   }, []);
 
   const jogadoresOrdenados = useMemo(() => {
@@ -87,7 +124,7 @@ export default function JogadoresPage() {
     >
       <div style={{ padding: "0 12px" }}>
         <Link
-          href="/"
+          href="/dashboard"
           style={{
             color: "#ff4fd8",
             textDecoration: "none",
@@ -150,126 +187,143 @@ export default function JogadoresPage() {
           </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 18,
-          }}
-        >
-          {jogadoresFiltrados.length === 0 ? (
-            <div style={{ color: "#9a9a9a" }}>Nenhum jogador encontrado.</div>
-          ) : (
-            jogadoresPaginados.map((player, index) => {
-              const overall = calculateOverall(player.valor ?? 0);
-
-              return (
-                <div
-                  key={player.id ?? `${player.nome}-${index}`}
-                  style={{
-                    width: 230,
-                    background: "#080808",
-                    border: "1px solid #161616",
-                    borderRadius: 18,
-                    padding: 14,
-                  }}
-                >
-                  <img
-                    src={player.imagem || "/user.png"}
-                    alt={player.nome}
-                    style={{
-                      width: "100%",
-                      height: 180,
-                      objectFit: "cover",
-                      borderRadius: 14,
-                      marginBottom: 10,
-                    }}
-                  />
-
-                  <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>
-                    {player.nomeCompleto || player.nome}
-                  </div>
-
-                  <div style={{ textAlign: "center", margin: "8px 0 12px" }}>
-                    <div style={{ fontSize: 28, lineHeight: 1 }}>{overall}</div>
-                    <div style={{ color: "#d0d0d0", fontSize: 16 }}>overall</div>
-                  </div>
-
-                  <div style={{ color: "#cfcfcf", marginBottom: 6 }}>
-                    ID online:{" "}
-                    <span style={{ color: "#89a7ff" }}>{player.idOnline || "-"}</span>
-                  </div>
-
-                  <div style={{ color: "#cfcfcf", marginBottom: 6 }}>
-                    País: {player.pais || "-"}
-                  </div>
-
-                  <div style={{ color: "#cfcfcf" }}>
-                    Valor: R$ {formatMoney(parseMoney(player.valor ?? 0))}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {jogadoresFiltrados.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: 12,
-              marginTop: 24,
-              flexWrap: "wrap",
-            }}
-          >
-            <button
-              onClick={() => setPaginaAtual((p) => Math.max(1, p - 1))}
-              disabled={paginaAtual === 1}
-              style={{
-                background: paginaAtual === 1 ? "#1a1a1a" : "#ff4fd8",
-                color: paginaAtual === 1 ? "#666" : "#000",
-                border: "none",
-                borderRadius: 12,
-                padding: "10px 16px",
-                fontWeight: 700,
-                cursor: paginaAtual === 1 ? "not-allowed" : "pointer",
-              }}
-            >
-              Anterior
-            </button>
-
+        {carregando ? (
+          <div style={{ color: "#9a9a9a" }}>Carregando jogadores...</div>
+        ) : (
+          <>
             <div
               style={{
-                color: "#fff",
-                fontWeight: 700,
-                minWidth: 120,
-                textAlign: "center",
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 18,
               }}
             >
-              Página {paginaAtual} de {totalPaginas}
+              {jogadoresFiltrados.length === 0 ? (
+                <div style={{ color: "#9a9a9a" }}>Nenhum jogador encontrado.</div>
+              ) : (
+                jogadoresPaginados.map((player, index) => {
+                  const overall = calculateOverall(player.valor ?? 0);
+
+                  return (
+                    <div
+                      key={player.id ?? `${player.nome}-${index}`}
+                      style={{
+                        width: 230,
+                        background: "#080808",
+                        border: "1px solid #161616",
+                        borderRadius: 18,
+                        padding: 14,
+                      }}
+                    >
+                      <img
+                        src={player.imagem || "/user.png"}
+                        alt={player.nome}
+                        style={{
+                          width: "100%",
+                          height: 180,
+                          objectFit: "cover",
+                          borderRadius: 14,
+                          marginBottom: 10,
+                        }}
+                      />
+
+                      <div
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 700,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {player.nomeCompleto || player.nome}
+                      </div>
+
+                      <div style={{ textAlign: "center", margin: "8px 0 12px" }}>
+                        <div style={{ fontSize: 28, lineHeight: 1 }}>{overall}</div>
+                        <div style={{ color: "#d0d0d0", fontSize: 16 }}>
+                          overall
+                        </div>
+                      </div>
+
+                      <div style={{ color: "#cfcfcf", marginBottom: 6 }}>
+                        ID online:{" "}
+                        <span style={{ color: "#89a7ff" }}>
+                          {player.idOnline || "-"}
+                        </span>
+                      </div>
+
+                      <div style={{ color: "#cfcfcf", marginBottom: 6 }}>
+                        País: {player.pais || "-"}
+                      </div>
+
+                      <div style={{ color: "#cfcfcf" }}>
+                        Valor: R$ {formatMoney(parseMoney(player.valor ?? 0))}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
-            <button
-              onClick={() =>
-                setPaginaAtual((p) => Math.min(totalPaginas, p + 1))
-              }
-              disabled={paginaAtual === totalPaginas}
-              style={{
-                background: paginaAtual === totalPaginas ? "#1a1a1a" : "#ff4fd8",
-                color: paginaAtual === totalPaginas ? "#666" : "#000",
-                border: "none",
-                borderRadius: 12,
-                padding: "10px 16px",
-                fontWeight: 700,
-                cursor:
-                  paginaAtual === totalPaginas ? "not-allowed" : "pointer",
-              }}
-            >
-              Próxima
-            </button>
-          </div>
+            {jogadoresFiltrados.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 12,
+                  marginTop: 24,
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  onClick={() => setPaginaAtual((p) => Math.max(1, p - 1))}
+                  disabled={paginaAtual === 1}
+                  style={{
+                    background: paginaAtual === 1 ? "#1a1a1a" : "#ff4fd8",
+                    color: paginaAtual === 1 ? "#666" : "#000",
+                    border: "none",
+                    borderRadius: 12,
+                    padding: "10px 16px",
+                    fontWeight: 700,
+                    cursor: paginaAtual === 1 ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Anterior
+                </button>
+
+                <div
+                  style={{
+                    color: "#fff",
+                    fontWeight: 700,
+                    minWidth: 120,
+                    textAlign: "center",
+                  }}
+                >
+                  Página {paginaAtual} de {totalPaginas}
+                </div>
+
+                <button
+                  onClick={() =>
+                    setPaginaAtual((p) => Math.min(totalPaginas, p + 1))
+                  }
+                  disabled={paginaAtual === totalPaginas}
+                  style={{
+                    background:
+                      paginaAtual === totalPaginas ? "#1a1a1a" : "#ff4fd8",
+                    color: paginaAtual === totalPaginas ? "#666" : "#000",
+                    border: "none",
+                    borderRadius: 12,
+                    padding: "10px 16px",
+                    fontWeight: 700,
+                    cursor:
+                      paginaAtual === totalPaginas ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Próxima
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
     </main>

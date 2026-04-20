@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 type Equipe = {
   id: string;
@@ -17,15 +18,13 @@ type Equipe = {
 };
 
 type Jogador = {
-  id?: string;
+  id: string;
   nome: string;
   numero?: number | string;
   posicao?: string;
   overall?: number | string;
   imagem?: string;
-  clubeId?: string;
-  equipeId?: string;
-  timeId?: string;
+  clubeAtualId?: string;
 };
 
 export default function VisualizarEquipePage({
@@ -38,42 +37,90 @@ export default function VisualizarEquipePage({
   const [carregado, setCarregado] = useState(false);
 
   useEffect(() => {
-    const equipesSalvas = localStorage.getItem("equipes");
-    const jogadoresSalvos = localStorage.getItem("jogadores");
+    async function carregarDados() {
+      try {
+        setCarregado(false);
 
-    let listaEquipes: Equipe[] = [];
-    let listaJogadores: Jogador[] = [];
+        const supabase = createClient();
+        const equipeId = String(params.id);
 
-    try {
-      listaEquipes = equipesSalvas ? JSON.parse(equipesSalvas) : [];
-    } catch {
-      listaEquipes = [];
+        const { data: equipeBanco, error: erroEquipe } = await supabase
+          .from("equipes")
+          .select("*")
+          .eq("id", equipeId)
+          .maybeSingle();
+
+        if (erroEquipe) {
+          console.error("Erro ao carregar equipe:", erroEquipe);
+          setEquipe(null);
+          setJogadores([]);
+          return;
+        }
+
+        if (!equipeBanco) {
+          setEquipe(null);
+          setJogadores([]);
+          return;
+        }
+
+        const equipeNormalizada: Equipe = {
+          id: String(equipeBanco.id),
+          nome: equipeBanco.nome || "Clube",
+          pais: equipeBanco.pais || "Brasil",
+          plataforma: equipeBanco.plataforma || "PC",
+          imagem: equipeBanco.imagem || "",
+          instagram: equipeBanco.instagram || "",
+          vitorias: Number(equipeBanco.vitorias || 0),
+          empates: Number(equipeBanco.empates || 0),
+          derrotas: Number(equipeBanco.derrotas || 0),
+          titulos: Number(equipeBanco.titulos || 0),
+        };
+
+        setEquipe(equipeNormalizada);
+
+        const { data: jogadoresBanco, error: erroJogadores } = await supabase
+          .from("jogadores")
+          .select("*")
+          .eq("clubeAtualId", equipeId)
+          .order("created_at", { ascending: false });
+
+        if (erroJogadores) {
+          console.error("Erro ao carregar jogadores:", erroJogadores);
+          setJogadores([]);
+          return;
+        }
+
+        const listaNormalizada: Jogador[] = Array.isArray(jogadoresBanco)
+          ? jogadoresBanco.map((item: any) => ({
+              id: String(item.id),
+              nome: item.nome || "Jogador",
+              numero: item.numero || "",
+              posicao: item.posicao || "",
+              overall: Number(item.overall || 55),
+              imagem: item.imagem || "",
+              clubeAtualId: item.clubeAtualId ? String(item.clubeAtualId) : "",
+            }))
+          : [];
+
+        setJogadores(listaNormalizada);
+      } catch (error) {
+        console.error("Erro inesperado ao carregar equipe:", error);
+        setEquipe(null);
+        setJogadores([]);
+      } finally {
+        setCarregado(true);
+      }
     }
 
-    try {
-      listaJogadores = jogadoresSalvos ? JSON.parse(jogadoresSalvos) : [];
-    } catch {
-      listaJogadores = [];
-    }
-
-    const equipeEncontrada =
-      listaEquipes.find((item) => String(item.id) === String(params.id)) || null;
-
-    setEquipe(equipeEncontrada);
-    setJogadores(Array.isArray(listaJogadores) ? listaJogadores : []);
-    setCarregado(true);
+    carregarDados();
   }, [params.id]);
 
   const jogadoresDoClube = useMemo(() => {
     if (!equipe) return [];
 
-    return jogadores.filter((jogador) => {
-      return (
-        String(jogador.clubeId) === String(equipe.id) ||
-        String(jogador.equipeId) === String(equipe.id) ||
-        String(jogador.timeId) === String(equipe.id)
-      );
-    });
+    return jogadores.filter(
+      (jogador) => String(jogador.clubeAtualId || "") === String(equipe.id)
+    );
   }, [equipe, jogadores]);
 
   if (!carregado) {
@@ -172,6 +219,9 @@ export default function VisualizarEquipePage({
               <img
                 src={equipe.imagem || "/team.png"}
                 alt={equipe.nome}
+                onError={(e) => {
+                  e.currentTarget.src = "/team.png";
+                }}
                 style={{
                   width: 72,
                   height: 72,
@@ -209,11 +259,7 @@ export default function VisualizarEquipePage({
                 >
                   Nome do clube
                 </label>
-                <input
-                  value={equipe.nome || ""}
-                  readOnly
-                  style={inputStyle}
-                />
+                <input value={equipe.nome || ""} readOnly style={inputStyle} />
               </div>
 
               <div>
@@ -227,11 +273,7 @@ export default function VisualizarEquipePage({
                 >
                   País
                 </label>
-                <input
-                  value={equipe.pais || ""}
-                  readOnly
-                  style={inputStyle}
-                />
+                <input value={equipe.pais || ""} readOnly style={inputStyle} />
               </div>
 
               <div>
@@ -370,7 +412,9 @@ export default function VisualizarEquipePage({
                 padding: 18,
               }}
             >
-              <h3 style={{ marginTop: 0, marginBottom: 16 }}>Jogadores do clube</h3>
+              <h3 style={{ marginTop: 0, marginBottom: 16 }}>
+                Jogadores do clube
+              </h3>
 
               {jogadoresDoClube.length === 0 ? (
                 <p style={{ color: "#888", margin: 0 }}>
@@ -397,6 +441,9 @@ export default function VisualizarEquipePage({
                       <img
                         src={jogador.imagem || "/player.png"}
                         alt={jogador.nome}
+                        onError={(e) => {
+                          e.currentTarget.src = "/player.png";
+                        }}
                         style={{
                           width: "100%",
                           height: 150,

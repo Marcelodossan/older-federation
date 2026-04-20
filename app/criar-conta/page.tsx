@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 const ADMIN_EMAIL = "marcelo.dos.santos.filho03@gmail.com";
 
@@ -10,8 +11,9 @@ export default function CriarContaPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [carregando, setCarregando] = useState(false);
 
-  function handleCriarConta() {
+  async function handleCriarConta() {
     if (!nome || !email || !senha || !confirmarSenha) {
       alert("Preencha todos os campos");
       return;
@@ -22,45 +24,98 @@ export default function CriarContaPage() {
       return;
     }
 
-    const usuarios = JSON.parse(localStorage.getItem("usuarios") || "[]");
+    try {
+      setCarregando(true);
 
-    const jaExiste = usuarios.some(
-      (u: any) =>
-        String(u.email || "").toLowerCase().trim() ===
-        email.toLowerCase().trim()
-    );
+      const supabase = createClient();
 
-    if (jaExiste) {
-      alert("Já existe uma conta com esse email");
-      return;
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: senha,
+        options: {
+          data: {
+            nome: nome.trim(),
+            idOnline: nome.trim(),
+            isAdmin:
+              email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase(),
+          },
+        },
+      });
+
+      if (error) {
+        console.error(error);
+        alert(error.message);
+        return;
+      }
+
+      const user = data.user;
+
+      if (!user) {
+        alert("Conta criada. Verifique seu email para confirmar o cadastro.");
+        window.location.href = "/login";
+        return;
+      }
+
+      const novoUsuario = {
+        id: user.id,
+        nome: nome.trim(),
+        nomeCompleto: nome.trim(),
+        email: user.email || email.trim(),
+        foto: null,
+        idOnline: nome.trim(),
+        posicao: "GOL",
+        numero: "1",
+        imagem: "",
+        overall: 55,
+        valor: 550000,
+        pais: "Brasil",
+        clubeAtualId: "",
+        clubeAtualNome: "",
+        criadoPor: user.id,
+        isAdmin:
+          String(user.email || "").toLowerCase().trim() ===
+          ADMIN_EMAIL.toLowerCase(),
+      };
+
+      const { error: perfilError } = await supabase.from("usuarios").upsert(
+        {
+          id: novoUsuario.id,
+          nome: novoUsuario.nome,
+          nomeCompleto: novoUsuario.nomeCompleto,
+          email: novoUsuario.email,
+          foto: novoUsuario.foto,
+          idOnline: novoUsuario.idOnline,
+          posicao: novoUsuario.posicao,
+          numero: novoUsuario.numero,
+          imagem: novoUsuario.imagem,
+          overall: novoUsuario.overall,
+          valor: novoUsuario.valor,
+          pais: novoUsuario.pais,
+          clubeAtualId: novoUsuario.clubeAtualId,
+          clubeAtualNome: novoUsuario.clubeAtualNome,
+          criadoPor: novoUsuario.criadoPor,
+          isAdmin: novoUsuario.isAdmin,
+        },
+        { onConflict: "id" }
+      );
+
+      if (perfilError) {
+        console.error(perfilError);
+        alert("Conta criada, mas houve erro ao salvar perfil no banco.");
+        window.location.href = "/login";
+        return;
+      }
+
+      localStorage.setItem("jogadorLogado", JSON.stringify(novoUsuario));
+      localStorage.setItem("sessaoAtiva", "true");
+
+      window.location.href = "/dashboard";
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao criar conta");
+    } finally {
+      setCarregando(false);
     }
-
-    const novoUsuario = {
-      id: crypto.randomUUID(),
-      nome,
-      email,
-      senha,
-      foto: null,
-      idOnline: nome,
-      posicao: "GOL",
-      numero: "1",
-      imagem: "",
-      overall: 55,
-      valor: 550000,
-      clubeAtualId: "",
-      clubeAtualNome: "",
-      criadoPor: email,
-      isAdmin:
-        email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase(),
-    };
-
-    const novosUsuarios = [...usuarios, novoUsuario];
-
-    localStorage.setItem("usuarios", JSON.stringify(novosUsuarios));
-    localStorage.setItem("jogadorLogado", JSON.stringify(novoUsuario));
-    localStorage.setItem("sessaoAtiva", "true");
-
-    window.location.href = "/dashboard";
   }
 
   return (
@@ -127,8 +182,16 @@ export default function CriarContaPage() {
           style={{ ...inputStyle, marginTop: 14 }}
         />
 
-        <button onClick={handleCriarConta} style={buttonStyle}>
-          Criar conta
+        <button
+          onClick={handleCriarConta}
+          style={{
+            ...buttonStyle,
+            opacity: carregando ? 0.7 : 1,
+            cursor: carregando ? "not-allowed" : "pointer",
+          }}
+          disabled={carregando}
+        >
+          {carregando ? "Criando..." : "Criar conta"}
         </button>
 
         <Link
@@ -167,5 +230,4 @@ const buttonStyle: React.CSSProperties = {
   background: "#ff4fd8",
   color: "#fff",
   fontWeight: "bold",
-  cursor: "pointer",
 };

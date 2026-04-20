@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 type Equipe = {
   id: string;
@@ -20,19 +21,53 @@ export default function EquipesPage() {
   const [equipes, setEquipes] = useState<Equipe[]>([]);
   const [busca, setBusca] = useState("");
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [carregando, setCarregando] = useState(true);
 
   const itensPorPagina = 8;
 
   useEffect(() => {
-    const equipesSalvas = localStorage.getItem("equipes");
-    if (equipesSalvas) {
+    async function carregarEquipes() {
       try {
-        const lista = JSON.parse(equipesSalvas);
-        setEquipes(Array.isArray(lista) ? lista : []);
-      } catch {
+        setCarregando(true);
+
+        const supabase = createClient();
+
+        const { data, error } = await supabase
+          .from("equipes")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          console.error(error);
+          setEquipes([]);
+          return;
+        }
+
+        const listaNormalizada: Equipe[] = Array.isArray(data)
+          ? data.map((item: any) => ({
+              id: String(item.id),
+              nome: item.nome || "Clube",
+              pais: item.pais || "Brasil",
+              plataforma: item.plataforma || "PC",
+              imagem: item.imagem || "",
+              instagram: item.instagram || "",
+              vitorias: Number(item.vitorias || 0),
+              empates: Number(item.empates || 0),
+              derrotas: Number(item.derrotas || 0),
+              titulos: Number(item.titulos || 0),
+            }))
+          : [];
+
+        setEquipes(listaNormalizada);
+      } catch (error) {
+        console.error(error);
         setEquipes([]);
+      } finally {
+        setCarregando(false);
       }
     }
+
+    carregarEquipes();
   }, []);
 
   const equipesFiltradas = useMemo(() => {
@@ -42,15 +77,18 @@ export default function EquipesPage() {
 
     return equipes.filter((equipe) => {
       return (
-        equipe.nome?.toLowerCase().includes(termo) ||
-        equipe.pais?.toLowerCase().includes(termo) ||
-        equipe.plataforma?.toLowerCase().includes(termo) ||
-        equipe.instagram?.toLowerCase().includes(termo)
+        String(equipe.nome || "").toLowerCase().includes(termo) ||
+        String(equipe.pais || "").toLowerCase().includes(termo) ||
+        String(equipe.plataforma || "").toLowerCase().includes(termo) ||
+        String(equipe.instagram || "").toLowerCase().includes(termo)
       );
     });
   }, [equipes, busca]);
 
-  const totalPaginas = Math.max(1, Math.ceil(equipesFiltradas.length / itensPorPagina));
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(equipesFiltradas.length / itensPorPagina)
+  );
 
   const equipesPaginadas = useMemo(() => {
     const inicio = (paginaAtual - 1) * itensPorPagina;
@@ -78,7 +116,7 @@ export default function EquipesPage() {
       }}
     >
       <Link
-        href="/"
+        href="/dashboard"
         style={{
           color: "#ff4fd8",
           textDecoration: "none",
@@ -141,9 +179,11 @@ export default function EquipesPage() {
           </span>
         </div>
 
-        {equipes.length === 0 ? (
+        {carregando ? (
+          <p style={{ color: "#aaa" }}>Carregando equipes...</p>
+        ) : equipes.length === 0 ? (
           <p style={{ color: "#aaa" }}>Nenhuma equipe cadastrada.</p>
-        ) : equipesPaginadas.length === 0 ? (
+        ) : equipesFiltradas.length === 0 ? (
           <p style={{ color: "#aaa" }}>Nenhuma equipe encontrada.</p>
         ) : (
           <>
@@ -168,6 +208,9 @@ export default function EquipesPage() {
                   <img
                     src={equipe.imagem || "/team.png"}
                     alt={equipe.nome}
+                    onError={(e) => {
+                      e.currentTarget.src = "/team.png";
+                    }}
                     style={{
                       width: "100%",
                       height: 150,
@@ -193,10 +236,13 @@ export default function EquipesPage() {
                     </p>
 
                     <p style={{ color: "#bbb", margin: "4px 0", fontSize: 14 }}>
-                      V: {equipe.vitorias || 0} | E: {equipe.empates || 0} | D: {equipe.derrotas || 0}
+                      V: {equipe.vitorias || 0} | E: {equipe.empates || 0} | D:{" "}
+                      {equipe.derrotas || 0}
                     </p>
 
-                    <p style={{ color: "#bbb", margin: "4px 0 14px", fontSize: 14 }}>
+                    <p
+                      style={{ color: "#bbb", margin: "4px 0 14px", fontSize: 14 }}
+                    >
                       Títulos: {equipe.titulos || 0}
                     </p>
 
@@ -255,12 +301,14 @@ export default function EquipesPage() {
                 }
                 disabled={paginaAtual === totalPaginas}
                 style={{
-                  background: paginaAtual === totalPaginas ? "#1b1b1b" : "#ff4fd8",
+                  background:
+                    paginaAtual === totalPaginas ? "#1b1b1b" : "#ff4fd8",
                   color: "#fff",
                   border: "none",
                   borderRadius: 10,
                   padding: "10px 14px",
-                  cursor: paginaAtual === totalPaginas ? "not-allowed" : "pointer",
+                  cursor:
+                    paginaAtual === totalPaginas ? "not-allowed" : "pointer",
                   fontWeight: 700,
                 }}
               >

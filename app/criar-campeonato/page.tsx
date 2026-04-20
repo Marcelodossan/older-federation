@@ -2,15 +2,23 @@
 
 import Link from "next/link";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 type Campeonato = {
   id: string;
   titulo: string;
   imagem: string;
   numeroParticipantes: number;
-  formato: "eliminatorias" | "pontos-corridos" | "pontos-corridos-eliminatorias";
+  formato:
+    | "eliminatorias"
+    | "pontos-corridos"
+    | "pontos-corridos-eliminatorias";
   criadoPor: string;
   dataCriacao: string;
+  timeIds?: string[];
+  gruposData?: { nome: string; timeIds: string[] }[];
+  partidas?: any[];
 };
 
 type JogadorLogado = {
@@ -20,15 +28,7 @@ type JogadorLogado = {
   isAdmin?: boolean;
 };
 
-function readJson<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
+const ADMIN_EMAIL = "marcelo.dos.santos.filho03@gmail.com";
 
 function gerarId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -41,7 +41,11 @@ function normalizarTexto(texto?: string) {
   return String(texto || "").trim().toLowerCase();
 }
 
-function reduzirImagem(file: File, maxWidth = 700, quality = 0.72): Promise<string> {
+function reduzirImagem(
+  file: File,
+  maxWidth = 700,
+  quality = 0.72
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
@@ -50,6 +54,7 @@ function reduzirImagem(file: File, maxWidth = 700, quality = 0.72): Promise<stri
 
       img.onload = () => {
         const scale = Math.min(1, maxWidth / img.width);
+
         const canvas = document.createElement("canvas");
         canvas.width = Math.max(1, Math.round(img.width * scale));
         canvas.height = Math.max(1, Math.round(img.height * scale));
@@ -79,6 +84,9 @@ function tamanhoAproximadoEmMB(texto: string) {
 }
 
 export default function CriarCampeonatoPage() {
+  const router = useRouter();
+  const supabase = createClient();
+
   const [jogadorLogado, setJogadorLogado] = useState<JogadorLogado | null>(null);
   const [titulo, setTitulo] = useState("");
   const [imagem, setImagem] = useState("");
@@ -87,27 +95,55 @@ export default function CriarCampeonatoPage() {
     "eliminatorias" | "pontos-corridos" | "pontos-corridos-eliminatorias"
   >("eliminatorias");
   const [mensagem, setMensagem] = useState("");
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
-    const jogador = localStorage.getItem("jogadorLogado");
+    async function validarAcesso() {
+      try {
+        setCarregando(true);
 
-    if (!jogador) {
-      window.location.href = "/login";
-      return;
-    }
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
 
-    try {
-      const jogadorParseado = JSON.parse(jogador) as JogadorLogado;
-      setJogadorLogado(jogadorParseado);
+        if (error) {
+          console.error(error);
+          router.push("/login");
+          return;
+        }
 
-      if (!jogadorParseado.isAdmin) {
-        alert("Apenas o administrador pode criar campeonatos.");
-        window.location.href = "/";
+        if (!user) {
+          router.push("/login");
+          return;
+        }
+
+        const jogadorAtual: JogadorLogado = {
+          id: user.id,
+          nome: user.user_metadata?.nome || user.email || "Usuário",
+          email: user.email || "",
+          isAdmin:
+            normalizarTexto(user.email || "") === normalizarTexto(ADMIN_EMAIL),
+        };
+
+        setJogadorLogado(jogadorAtual);
+
+        if (!jogadorAtual.isAdmin) {
+          alert("Apenas o administrador pode criar campeonatos.");
+          router.push("/dashboard");
+          return;
+        }
+      } catch (error) {
+        console.error(error);
+        router.push("/login");
+      } finally {
+        setCarregando(false);
       }
-    } catch {
-      window.location.href = "/login";
     }
-  }, []);
+
+    validarAcesso();
+  }, [router, supabase]);
 
   async function handleImagemChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -129,60 +165,134 @@ export default function CriarCampeonatoPage() {
     }
   }
 
-  function handleSalvar(e: FormEvent<HTMLFormElement>) {
+  async function handleSalvar(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const tituloFinal = titulo.trim();
-    const participantesFinal = Number(numeroParticipantes) || 0;
-
-    if (!jogadorLogado?.isAdmin) {
-      setMensagem("Apenas o administrador pode criar campeonatos.");
-      return;
-    }
-
-    if (!tituloFinal) {
-      setMensagem("Informe o título do campeonato.");
-      return;
-    }
-
-    if (participantesFinal < 2) {
-      setMensagem("Informe pelo menos 2 participantes.");
-      return;
-    }
-
-    const campeonatosSalvos = readJson<Campeonato[]>("campeonatos", []);
-
-    const tituloDuplicado = campeonatosSalvos.some(
-      (item) => normalizarTexto(item.titulo) === normalizarTexto(tituloFinal)
-    );
-
-    if (tituloDuplicado) {
-      setMensagem("Já existe um campeonato com esse título.");
-      return;
-    }
-
-    const novoCampeonato: Campeonato = {
-      id: gerarId(),
-      titulo: tituloFinal,
-      imagem,
-      numeroParticipantes: participantesFinal,
-      formato,
-      criadoPor: jogadorLogado.id || jogadorLogado.email || jogadorLogado.nome || "",
-      dataCriacao: new Date().toISOString(),
-    };
-
     try {
-      const atualizados = [...campeonatosSalvos, novoCampeonato];
-      localStorage.setItem("campeonatos", JSON.stringify(atualizados));
+      setMensagem("");
+      setSalvando(true);
+
+      const tituloFinal = titulo.trim();
+      const participantesFinal = Number(numeroParticipantes) || 0;
+
+      if (!jogadorLogado?.isAdmin) {
+        setMensagem("Apenas o administrador pode criar campeonatos.");
+        return;
+      }
+
+      if (!tituloFinal) {
+        setMensagem("Informe o título do campeonato.");
+        return;
+      }
+
+      if (participantesFinal < 2) {
+        setMensagem("Informe pelo menos 2 participantes.");
+        return;
+      }
+
+      if (participantesFinal > 32) {
+        setMensagem("O máximo permitido é 32 participantes.");
+        return;
+      }
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) {
+        console.error(authError);
+        setMensagem("Erro ao validar login.");
+        return;
+      }
+
+      if (!user) {
+        setMensagem("Faça login novamente.");
+        return;
+      }
+
+      const { data: existentes, error: erroBusca } = await supabase
+        .from("campeonatos")
+        .select("id, titulo");
+
+      if (erroBusca) {
+        console.error(erroBusca);
+        setMensagem("Erro ao validar campeonatos existentes.");
+        return;
+      }
+
+      const tituloDuplicado = (existentes || []).some(
+        (item: any) =>
+          normalizarTexto(item.titulo) === normalizarTexto(tituloFinal)
+      );
+
+      if (tituloDuplicado) {
+        setMensagem("Já existe um campeonato com esse título.");
+        return;
+      }
+
+      const novoCampeonato: Campeonato = {
+        id: gerarId(),
+        titulo: tituloFinal,
+        imagem,
+        numeroParticipantes: participantesFinal,
+        formato,
+        criadoPor: user.id,
+        dataCriacao: new Date().toISOString(),
+        timeIds: [],
+        gruposData: [],
+        partidas: [],
+      };
+
+      const payload = {
+        id: novoCampeonato.id,
+        titulo: novoCampeonato.titulo,
+        imagem: novoCampeonato.imagem,
+        numeroparticipantes: novoCampeonato.numeroParticipantes,
+        formato: novoCampeonato.formato,
+        criadopor: novoCampeonato.criadoPor,
+        datacriacao: novoCampeonato.dataCriacao,
+        timeids: novoCampeonato.timeIds || [],
+        gruposdata: novoCampeonato.gruposData || [],
+        partidas: novoCampeonato.partidas || [],
+      };
+
+      const { error: erroInsert } = await supabase
+        .from("campeonatos")
+        .insert(payload);
+
+      if (erroInsert) {
+        console.error(erroInsert);
+        setMensagem("Erro ao salvar campeonato no banco.");
+        return;
+      }
 
       alert("Campeonato criado com sucesso!");
-      window.location.href = "/";
+      router.push(`/campeonatos/${novoCampeonato.id}`);
     } catch (error) {
       console.error(error);
-      setMensagem(
-        "Não foi possível salvar o campeonato. A imagem está muito grande para o armazenamento local."
-      );
+      setMensagem("Erro inesperado ao criar campeonato.");
+    } finally {
+      setSalvando(false);
     }
+  }
+
+  if (carregando) {
+    return (
+      <main
+        style={{
+          minHeight: "100vh",
+          background: "#000",
+          color: "#fff",
+          fontFamily: "Arial, sans-serif",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        Carregando...
+      </main>
+    );
   }
 
   return (
@@ -196,7 +306,7 @@ export default function CriarCampeonatoPage() {
       }}
     >
       <Link
-        href="/"
+        href="/dashboard"
         style={{
           color: "#ff4fd8",
           textDecoration: "none",
@@ -256,6 +366,7 @@ export default function CriarCampeonatoPage() {
             <input
               type="number"
               min="2"
+              max="32"
               value={numeroParticipantes}
               onChange={(e) => setNumeroParticipantes(e.target.value)}
               placeholder="Ex: 16"
@@ -319,6 +430,7 @@ export default function CriarCampeonatoPage() {
 
           <button
             type="submit"
+            disabled={salvando}
             style={{
               background: "#ff4fd8",
               color: "#fff",
@@ -326,11 +438,12 @@ export default function CriarCampeonatoPage() {
               borderRadius: 12,
               padding: "14px 18px",
               fontWeight: 700,
-              cursor: "pointer",
+              cursor: salvando ? "not-allowed" : "pointer",
               fontSize: 16,
+              opacity: salvando ? 0.7 : 1,
             }}
           >
-            Salvar campeonato
+            {salvando ? "Salvando..." : "Salvar campeonato"}
           </button>
         </form>
       </div>

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 type JogadorElenco = {
   jogadorId: string;
@@ -26,6 +27,7 @@ type Equipe = {
   derrotas: number;
   titulos: number;
   criadoPor?: string;
+  user_id?: string;
   emailDono?: string;
   criadoPorEmail?: string;
   elenco?: JogadorElenco[];
@@ -146,6 +148,7 @@ type EscalacaoSlot = {
 };
 
 const MAX_TIMES = 32;
+const ADMIN_EMAIL = "marcelo.dos.santos.filho03@gmail.com";
 
 function uid() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -154,18 +157,50 @@ function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function readJson<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
 function normalizarTexto(texto?: string) {
   return String(texto || "").trim().toLowerCase();
+}
+
+function normalizarEquipe(item: any): Equipe {
+  return {
+    id: String(item.id),
+    nome: item.nome || "",
+    pais: item.pais || "Brasil",
+    plataforma: item.plataforma || "PC",
+    imagem: item.imagem || "",
+    instagram: item.instagram || "",
+    vitorias: Number(item.vitorias || 0),
+    empates: Number(item.empates || 0),
+    derrotas: Number(item.derrotas || 0),
+    titulos: Number(item.titulos || 0),
+    criadoPor: item.criadoPor || "",
+    user_id: item.user_id || "",
+    elenco: Array.isArray(item.elenco) ? item.elenco : [],
+  };
+}
+
+function normalizarCampeonato(item: any): Campeonato {
+  return {
+    id: String(item.id),
+    titulo: item.titulo || "Campeonato",
+    imagem: item.imagem || "",
+    numeroParticipantes: Number(item.numeroparticipantes || 0),
+    formato: item.formato || "eliminatorias",
+    criadoPor: item.criadopor || "",
+    dataCriacao: item.datacriacao || item.created_at || "",
+    timeIds: Array.isArray(item.timeids)
+      ? item.timeids.map((id: any) => String(id))
+      : [],
+    gruposData: Array.isArray(item.gruposdata)
+      ? item.gruposdata.map((grupo: any) => ({
+          nome: grupo?.nome || "",
+          timeIds: Array.isArray(grupo?.timeIds)
+            ? grupo.timeIds.map((id: any) => String(id))
+            : [],
+        }))
+      : [],
+    partidas: Array.isArray(item.partidas) ? item.partidas : [],
+  };
 }
 
 function getFormatoLabel(formato: CampeonatoFormato) {
@@ -216,8 +251,14 @@ function getPosicaoExibicao(posicao?: string) {
 
   if (["GK", "GOLEIRO", "GOL", "GO"].includes(p)) return "GK";
   if (["ZAG", "ZAGUEIRO"].includes(p)) return "ZAG";
-  if (["LAT", "LD", "LE", "LATERAL", "LATERAL DIREITO", "LATERAL ESQUERDO"].includes(p)) return "LAT";
-  if (["VOL", "VOLANTE", "MEIA DEFENSIVO", "MEIA-DEFENSIVO"].includes(p)) return "VOL";
+  if (
+    ["LAT", "LD", "LE", "LATERAL", "LATERAL DIREITO", "LATERAL ESQUERDO"].includes(
+      p
+    )
+  )
+    return "LAT";
+  if (["VOL", "VOLANTE", "MEIA DEFENSIVO", "MEIA-DEFENSIVO"].includes(p))
+    return "VOL";
   if (["MC", "MEIO CAMPISTA", "MEIO-CAMPISTA"].includes(p)) return "MC";
   if (["MEI", "MEIA"].includes(p)) return "MEI";
   if (["PE", "PONTA ESQUERDA"].includes(p)) return "PE";
@@ -297,8 +338,10 @@ function criarPartidasRoundRobin(
 
       if (mandanteId === "BYE" || visitanteId === "BYE") continue;
 
-      const mandante = times.find((t) => String(t.id) === String(mandanteId)) || null;
-      const visitante = times.find((t) => String(t.id) === String(visitanteId)) || null;
+      const mandante =
+        times.find((t) => String(t.id) === String(mandanteId)) || null;
+      const visitante =
+        times.find((t) => String(t.id) === String(visitanteId)) || null;
 
       partidas.push({
         id: uid(),
@@ -352,12 +395,19 @@ function buildGroups(
       })) as GrupoRow[];
 
     const partidasGrupo = partidas.filter(
-      (p) => p.fase === "grupos" && p.grupoNome === grupo.nome && p.status === "finalizado"
+      (p) =>
+        p.fase === "grupos" &&
+        p.grupoNome === grupo.nome &&
+        p.status === "finalizado"
     );
 
     partidasGrupo.forEach((p) => {
-      const mandante = rows.find((r) => String(r.equipe?.id) === String(p.mandanteId));
-      const visitante = rows.find((r) => String(r.equipe?.id) === String(p.visitanteId));
+      const mandante = rows.find(
+        (r) => String(r.equipe?.id) === String(p.mandanteId)
+      );
+      const visitante = rows.find(
+        (r) => String(r.equipe?.id) === String(p.visitanteId)
+      );
 
       if (!mandante || !visitante) return;
 
@@ -394,7 +444,9 @@ function buildGroups(
       if (b.vitorias !== a.vitorias) return b.vitorias - a.vitorias;
       if (b.saldo !== a.saldo) return b.saldo - a.saldo;
       if (b.golsPro !== a.golsPro) return b.golsPro - a.golsPro;
-      return String(a.equipe?.nome || "").localeCompare(String(b.equipe?.nome || ""));
+      return String(a.equipe?.nome || "").localeCompare(
+        String(b.equipe?.nome || "")
+      );
     });
 
     return {
@@ -426,8 +478,12 @@ function buildTabelaGeralPontosCorridos(campeonato: Campeonato, times: Equipe[])
   partidas
     .filter((p) => p.fase === "grupos" && p.status === "finalizado")
     .forEach((p) => {
-      const mandante = rows.find((r) => String(r.equipe?.id) === String(p.mandanteId));
-      const visitante = rows.find((r) => String(r.equipe?.id) === String(p.visitanteId));
+      const mandante = rows.find(
+        (r) => String(r.equipe?.id) === String(p.mandanteId)
+      );
+      const visitante = rows.find(
+        (r) => String(r.equipe?.id) === String(p.visitanteId)
+      );
 
       if (!mandante || !visitante) return;
 
@@ -464,7 +520,9 @@ function buildTabelaGeralPontosCorridos(campeonato: Campeonato, times: Equipe[])
     if (b.vitorias !== a.vitorias) return b.vitorias - a.vitorias;
     if (b.saldo !== a.saldo) return b.saldo - a.saldo;
     if (b.golsPro !== a.golsPro) return b.golsPro - a.golsPro;
-    return String(a.equipe?.nome || "").localeCompare(String(b.equipe?.nome || ""));
+    return String(a.equipe?.nome || "").localeCompare(
+      String(b.equipe?.nome || "")
+    );
   });
 
   return rows.map((row, index) => ({
@@ -654,19 +712,14 @@ function montarEscalacao352(base: RankingPlayerStats[]): EscalacaoSlot[] {
 
   return [
     montar("GK", "GK", gk),
-
     montar("ZAG-1", "ZAG", zag1),
     montar("ZAG-2", "ZAG", zag2),
     montar("ZAG-3", "ZAG", zag3),
-
     montar("VOL", "VOL", vol),
-
     montar("MEI-1", "MEI", mei1),
     montar("MEI-2", "MEI", mei2),
-
     montar("PD", "PD", pontaDireita),
     montar("PE", "PE", pontaEsquerda),
-
     montar("ATA-1", "ATA", ataque1),
     montar("ATA-2", "ATA", ataque2),
   ];
@@ -681,7 +734,10 @@ function getCampeao(campeonato: Campeonato, times: Equipe[]): Equipe | null {
   }
 
   const finais = partidas.filter(
-    (p) => p.fase === "mata-mata" && p.faseNome === "Final" && p.status === "finalizado"
+    (p) =>
+      p.fase === "mata-mata" &&
+      p.faseNome === "Final" &&
+      p.status === "finalizado"
   );
 
   if (!finais.length) return null;
@@ -690,21 +746,33 @@ function getCampeao(campeonato: Campeonato, times: Equipe[]): Equipe | null {
   if (final.golsMandante === final.golsVisitante) return null;
 
   const campeaoId =
-    final.golsMandante > final.golsVisitante ? final.mandanteId : final.visitanteId;
+    final.golsMandante > final.golsVisitante
+      ? final.mandanteId
+      : final.visitanteId;
 
   return times.find((time) => String(time.id) === String(campeaoId)) || null;
 }
 
 function todasPartidasDeGrupoFinalizadas(campeonato: Campeonato) {
-  const partidasGrupo = (campeonato.partidas || []).filter((p) => p.fase === "grupos");
-  return partidasGrupo.length > 0 && partidasGrupo.every((p) => p.status === "finalizado");
+  const partidasGrupo = (campeonato.partidas || []).filter(
+    (p) => p.fase === "grupos"
+  );
+  return (
+    partidasGrupo.length > 0 &&
+    partidasGrupo.every((p) => p.status === "finalizado")
+  );
 }
 
-function gerarMataMataPuro(campeonato: Campeonato, timesBase: Equipe[]): Campeonato {
+function gerarMataMataPuro(
+  campeonato: Campeonato,
+  timesBase: Equipe[]
+): Campeonato {
   const times = shuffleArray(timesBase);
   if (times.length < 2) return campeonato;
 
-  const partidasExistentes = (campeonato.partidas || []).filter((p) => p.fase === "mata-mata");
+  const partidasExistentes = (campeonato.partidas || []).filter(
+    (p) => p.fase === "mata-mata"
+  );
   if (partidasExistentes.length > 0) return campeonato;
 
   let faseNome = "Final";
@@ -748,7 +816,9 @@ function gerarMataMataMistoAutomatico(
   if (campeonato.formato !== "pontos-corridos-eliminatorias") return campeonato;
   if (!todasPartidasDeGrupoFinalizadas(campeonato)) return campeonato;
 
-  const jaTemMataMata = (campeonato.partidas || []).some((p) => p.fase === "mata-mata");
+  const jaTemMataMata = (campeonato.partidas || []).some(
+    (p) => p.fase === "mata-mata"
+  );
   if (jaTemMataMata) return campeonato;
 
   const grupos = buildGroups(campeonato, times);
@@ -784,7 +854,10 @@ function gerarMataMataMistoAutomatico(
       });
     }
 
-    return { ...campeonato, partidas: [...(campeonato.partidas || []), ...partidas] };
+    return {
+      ...campeonato,
+      partidas: [...(campeonato.partidas || []), ...partidas],
+    };
   }
 
   if (grupos.length === 2) {
@@ -814,7 +887,10 @@ function gerarMataMataMistoAutomatico(
       });
     });
 
-    return { ...campeonato, partidas: [...(campeonato.partidas || []), ...partidas] };
+    return {
+      ...campeonato,
+      partidas: [...(campeonato.partidas || []), ...partidas],
+    };
   }
 
   if (grupos.length === 4) {
@@ -848,7 +924,10 @@ function gerarMataMataMistoAutomatico(
       });
     });
 
-    return { ...campeonato, partidas: [...(campeonato.partidas || []), ...partidas] };
+    return {
+      ...campeonato,
+      partidas: [...(campeonato.partidas || []), ...partidas],
+    };
   }
 
   return campeonato;
@@ -856,7 +935,12 @@ function gerarMataMataMistoAutomatico(
 
 function avancarMataMata(campeonato: Campeonato, times: Equipe[]): Campeonato {
   const partidas = campeonato.partidas || [];
-  const fasesOrdem = ["Oitavas de final", "Quartas de final", "Semi-finais", "Final"];
+  const fasesOrdem = [
+    "Oitavas de final",
+    "Quartas de final",
+    "Semi-finais",
+    "Final",
+  ];
 
   for (let i = 0; i < fasesOrdem.length; i++) {
     const fase = fasesOrdem[i];
@@ -865,7 +949,8 @@ function avancarMataMata(campeonato: Campeonato, times: Equipe[]): Campeonato {
     );
 
     if (!partidasDaFase.length) continue;
-    if (!partidasDaFase.every((p) => p.status === "finalizado")) return campeonato;
+    if (!partidasDaFase.every((p) => p.status === "finalizado"))
+      return campeonato;
 
     const proximaFase = fasesOrdem[i + 1];
     if (!proximaFase) return campeonato;
@@ -878,7 +963,8 @@ function avancarMataMata(campeonato: Campeonato, times: Equipe[]): Campeonato {
     const vencedores = partidasDaFase
       .map((p) => {
         if (p.golsMandante === p.golsVisitante) return null;
-        const id = p.golsMandante > p.golsVisitante ? p.mandanteId : p.visitanteId;
+        const id =
+          p.golsMandante > p.golsVisitante ? p.mandanteId : p.visitanteId;
         return times.find((t) => String(t.id) === String(id)) || null;
       })
       .filter(Boolean) as Equipe[];
@@ -916,48 +1002,37 @@ function avancarMataMata(campeonato: Campeonato, times: Equipe[]): Campeonato {
   return campeonato;
 }
 
-function compactarCampeonatoParaStorage(campeonato: Campeonato): Campeonato {
-  return {
-    ...campeonato,
-    imagem: campeonato.imagem || "",
-    timeIds: (campeonato.timeIds || []).map(String),
-    gruposData: campeonato.gruposData || [],
-    partidas: campeonato.partidas || [],
-  };
-}
-
 const posicoesCampo352: Record<
   string,
   { top: string; left: string; transform?: string }
 > = {
   GK: { top: "86%", left: "50%", transform: "translate(-50%, -50%)" },
-
   "ZAG-1": { top: "70%", left: "28%", transform: "translate(-50%, -50%)" },
   "ZAG-2": { top: "70%", left: "50%", transform: "translate(-50%, -50%)" },
   "ZAG-3": { top: "70%", left: "72%", transform: "translate(-50%, -50%)" },
-
   VOL: { top: "56%", left: "50%", transform: "translate(-50%, -50%)" },
-
   "MEI-1": { top: "44%", left: "38%", transform: "translate(-50%, -50%)" },
   "MEI-2": { top: "44%", left: "62%", transform: "translate(-50%, -50%)" },
-
   PE: { top: "48%", left: "12%", transform: "translate(-50%, -50%)" },
   PD: { top: "48%", left: "88%", transform: "translate(-50%, -50%)" },
-
   "ATA-1": { top: "18%", left: "38%", transform: "translate(-50%, -50%)" },
   "ATA-2": { top: "18%", left: "62%", transform: "translate(-50%, -50%)" },
 };
 
 export default function CampeonatoDetalhePage() {
   const params = useParams();
+  const router = useRouter();
+  const supabase = createClient();
   const campeonatoId = String(params?.id || "");
 
   const [jogadorLogado, setJogadorLogado] = useState<JogadorLogado | null>(null);
   const [equipes, setEquipes] = useState<Equipe[]>([]);
   const [campeonato, setCampeonato] = useState<Campeonato | null>(null);
+  const [carregando, setCarregando] = useState(true);
 
   const [tabAtiva, setTabAtiva] = useState<TabKey>("grupos");
-  const [rankingCategoria, setRankingCategoria] = useState<RankingCategoria>("goleiro");
+  const [rankingCategoria, setRankingCategoria] =
+    useState<RankingCategoria>("goleiro");
 
   const [buscaTime, setBuscaTime] = useState("");
   const [buscaAplicada, setBuscaAplicada] = useState("");
@@ -966,29 +1041,92 @@ export default function CampeonatoDetalhePage() {
   const [grupoSelecionado, setGrupoSelecionado] = useState("Grupo 1");
   const [rodadaSelecionada, setRodadaSelecionada] = useState(1);
 
-  const [partidaSelecionada, setPartidaSelecionada] = useState<Partida | null>(null);
+  const [partidaSelecionada, setPartidaSelecionada] = useState<Partida | null>(
+    null
+  );
   const [placarMandanteEdicao, setPlacarMandanteEdicao] = useState(0);
   const [placarVisitanteEdicao, setPlacarVisitanteEdicao] = useState(0);
-  const [statsMandanteEdicao, setStatsMandanteEdicao] = useState<EstatisticaJogador[]>([]);
-  const [statsVisitanteEdicao, setStatsVisitanteEdicao] = useState<EstatisticaJogador[]>([]);
+  const [statsMandanteEdicao, setStatsMandanteEdicao] = useState<
+    EstatisticaJogador[]
+  >([]);
+  const [statsVisitanteEdicao, setStatsVisitanteEdicao] = useState<
+    EstatisticaJogador[]
+  >([]);
 
   useEffect(() => {
-    const jogador = readJson<JogadorLogado | null>("jogadorLogado", null);
-    const equipesSalvas = readJson<Equipe[]>("equipes", []);
-    const campeonatosSalvos = readJson<Campeonato[]>("campeonatos", []);
+    async function carregarDados() {
+      try {
+        setCarregando(true);
+        setMensagem("");
 
-    setJogadorLogado(jogador);
-    setEquipes(equipesSalvas);
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-    const encontrado =
-      campeonatosSalvos.find((c) => String(c.id) === String(campeonatoId)) || null;
-    setCampeonato(encontrado);
+        const isAdmin =
+          normalizarTexto(user?.email) === normalizarTexto(ADMIN_EMAIL);
 
-    if (encontrado) {
-      const tabs = getVisibleTabs(encontrado.formato);
-      setTabAtiva(tabs[0]);
+        setJogadorLogado(
+          user
+            ? {
+                id: user.id,
+                nome: user.email?.split("@")[0] || "Usuário",
+                email: user.email || "",
+                isAdmin,
+              }
+            : null
+        );
+
+        const { data: campeonatoBanco, error: campeonatoError } = await supabase
+          .from("campeonatos")
+          .select("*")
+          .eq("id", campeonatoId)
+          .maybeSingle();
+
+        if (campeonatoError) {
+          console.error(campeonatoError);
+          setCampeonato(null);
+          return;
+        }
+
+        if (!campeonatoBanco) {
+          setCampeonato(null);
+          return;
+        }
+
+        const campeonatoNormalizado = normalizarCampeonato(campeonatoBanco);
+        setCampeonato(campeonatoNormalizado);
+
+        const { data: equipesBanco, error: equipesError } = await supabase
+          .from("equipes")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (equipesError) {
+          console.error(equipesError);
+          setEquipes([]);
+        } else {
+          setEquipes(
+            Array.isArray(equipesBanco)
+              ? equipesBanco.map(normalizarEquipe)
+              : []
+          );
+        }
+
+        const tabs = getVisibleTabs(campeonatoNormalizado.formato);
+        setTabAtiva(tabs[0]);
+      } catch (error) {
+        console.error(error);
+        setMensagem("Erro ao carregar campeonato.");
+      } finally {
+        setCarregando(false);
+      }
     }
-  }, [campeonatoId]);
+
+    if (campeonatoId) {
+      carregarDados();
+    }
+  }, [campeonatoId, supabase]);
 
   const visibleTabs = useMemo(() => {
     if (!campeonato) return ["grupos"] as TabKey[];
@@ -1002,7 +1140,11 @@ export default function CampeonatoDetalhePage() {
   }, [campeonato, equipes]);
 
   const vagasRestantes = campeonato
-    ? Math.max(0, Math.min(MAX_TIMES, campeonato.numeroParticipantes) - timesNoCampeonato.length)
+    ? Math.max(
+        0,
+        Math.min(MAX_TIMES, campeonato.numeroParticipantes) -
+          timesNoCampeonato.length
+      )
     : 0;
 
   const grupos = useMemo(() => {
@@ -1108,9 +1250,8 @@ export default function CampeonatoDetalhePage() {
     }));
   }, [campeonato, rankingCategoria, timesNoCampeonato]);
 
-    const escalacaoDoCampeonato = useMemo(() => {
+  const escalacaoDoCampeonato = useMemo(() => {
     if (!campeonato) return [];
-
     const base = getAllPlayerStats(campeonato, timesNoCampeonato);
     return montarEscalacao352(base);
   }, [campeonato, timesNoCampeonato]);
@@ -1119,7 +1260,9 @@ export default function CampeonatoDetalhePage() {
     const termo = normalizarTexto(buscaAplicada);
 
     return equipes.filter((equipe) => {
-      const jaEsta = timesNoCampeonato.some((t) => String(t.id) === String(equipe.id));
+      const jaEsta = timesNoCampeonato.some(
+        (t) => String(t.id) === String(equipe.id)
+      );
       if (jaEsta) return false;
 
       if (!termo) return true;
@@ -1132,20 +1275,35 @@ export default function CampeonatoDetalhePage() {
     });
   }, [equipes, buscaAplicada, timesNoCampeonato]);
 
-  function salvarCampeonatoAtualizado(campeonatoAtualizado: Campeonato) {
+  async function salvarCampeonatoAtualizado(campeonatoAtualizado: Campeonato) {
     try {
-      const campeonatos = readJson<Campeonato[]>("campeonatos", []);
-      const compacto = compactarCampeonatoParaStorage(campeonatoAtualizado);
+      const payload = {
+        id: campeonatoAtualizado.id,
+        titulo: campeonatoAtualizado.titulo,
+        imagem: campeonatoAtualizado.imagem || "",
+        numeroparticipantes: campeonatoAtualizado.numeroParticipantes,
+        formato: campeonatoAtualizado.formato,
+        criadopor: campeonatoAtualizado.criadoPor || "",
+        datacriacao: campeonatoAtualizado.dataCriacao || "",
+        timeids: campeonatoAtualizado.timeIds || [],
+        gruposdata: campeonatoAtualizado.gruposData || [],
+        partidas: campeonatoAtualizado.partidas || [],
+      };
 
-      const novaLista = campeonatos.map((item) =>
-        String(item.id) === String(compacto.id) ? compacto : compactarCampeonatoParaStorage(item)
-      );
+      const { error } = await supabase
+        .from("campeonatos")
+        .upsert(payload, { onConflict: "id" });
 
-      localStorage.setItem("campeonatos", JSON.stringify(novaLista));
-      setCampeonato(compacto);
+      if (error) {
+        console.error(error);
+        setMensagem("Erro ao salvar campeonato no banco.");
+        return;
+      }
+
+      setCampeonato(campeonatoAtualizado);
     } catch (error) {
       console.error(error);
-      setMensagem("Não foi possível salvar o campeonato. Os dados ficaram grandes demais.");
+      setMensagem("Não foi possível salvar o campeonato.");
     }
   }
 
@@ -1153,7 +1311,7 @@ export default function CampeonatoDetalhePage() {
     setBuscaAplicada(buscaTime);
   }
 
-  function convidarTime(time: Equipe) {
+  async function convidarTime(time: Equipe) {
     if (!campeonato) return;
 
     if (!jogadorLogado?.isAdmin) {
@@ -1161,7 +1319,10 @@ export default function CampeonatoDetalhePage() {
       return;
     }
 
-    const limite = Math.min(MAX_TIMES, Number(campeonato.numeroParticipantes || 0));
+    const limite = Math.min(
+      MAX_TIMES,
+      Number(campeonato.numeroParticipantes || 0)
+    );
     const idsAtuais = campeonato.timeIds || [];
 
     if (idsAtuais.length >= limite) {
@@ -1180,43 +1341,57 @@ export default function CampeonatoDetalhePage() {
       timeIds: [...idsAtuais, String(time.id)],
     };
 
-    salvarCampeonatoAtualizado(atualizado);
+    await salvarCampeonatoAtualizado(atualizado);
     setMensagem(`Time "${time.nome}" adicionado com sucesso.`);
   }
 
-  function removerTime(timeId: string) {
+  async function removerTime(timeId: string) {
     if (!campeonato) return;
 
     const atualizado: Campeonato = {
       ...campeonato,
-      timeIds: (campeonato.timeIds || []).filter((id) => String(id) !== String(timeId)),
+      timeIds: (campeonato.timeIds || []).filter(
+        (id) => String(id) !== String(timeId)
+      ),
       gruposData: (campeonato.gruposData || []).map((grupo) => ({
         ...grupo,
         timeIds: grupo.timeIds.filter((id) => String(id) !== String(timeId)),
       })),
       partidas: (campeonato.partidas || []).filter(
-        (p) => String(p.mandanteId) !== String(timeId) && String(p.visitanteId) !== String(timeId)
+        (p) =>
+          String(p.mandanteId) !== String(timeId) &&
+          String(p.visitanteId) !== String(timeId)
       ),
     };
 
-    salvarCampeonatoAtualizado(atualizado);
+    await salvarCampeonatoAtualizado(atualizado);
     setMensagem("Time removido do campeonato.");
   }
 
-  function excluirCampeonato() {
+  async function excluirCampeonato() {
     if (!campeonato) return;
     if (!jogadorLogado?.isAdmin) return;
 
-    const confirmar = window.confirm(`Excluir o campeonato "${campeonato.titulo}"?`);
+    const confirmar = window.confirm(
+      `Excluir o campeonato "${campeonato.titulo}"?`
+    );
     if (!confirmar) return;
 
-    const campeonatos = readJson<Campeonato[]>("campeonatos", []);
-    const novaLista = campeonatos.filter((item) => String(item.id) !== String(campeonato.id));
-    localStorage.setItem("campeonatos", JSON.stringify(novaLista));
-    window.location.href = "/";
+    const { error } = await supabase
+      .from("campeonatos")
+      .delete()
+      .eq("id", campeonato.id);
+
+    if (error) {
+      console.error(error);
+      setMensagem("Erro ao excluir campeonato.");
+      return;
+    }
+
+    router.push("/");
   }
 
-  function sortearTimesNosGrupos() {
+  async function sortearTimesNosGrupos() {
     if (!campeonato) return;
     if (!jogadorLogado?.isAdmin) return;
 
@@ -1227,15 +1402,22 @@ export default function CampeonatoDetalhePage() {
     }
 
     if (campeonato.formato === "eliminatorias") {
-      setMensagem("No modo eliminatórias, use gerar partidas para montar o mata-mata.");
+      setMensagem(
+        "No modo eliminatórias, use gerar partidas para montar o mata-mata."
+      );
       return;
     }
 
     const quantidadeGrupos =
       campeonato.formato === "pontos-corridos" ? 1 : getNumeroGrupos(times.length);
 
-    const gruposData: GrupoData[] = Array.from({ length: quantidadeGrupos }).map((_, index) => ({
-      nome: campeonato.formato === "pontos-corridos" ? "Tabela geral" : `Grupo ${index + 1}`,
+    const gruposData: GrupoData[] = Array.from({
+      length: quantidadeGrupos,
+    }).map((_, index) => ({
+      nome:
+        campeonato.formato === "pontos-corridos"
+          ? "Tabela geral"
+          : `Grupo ${index + 1}`,
       timeIds: [],
     }));
 
@@ -1249,19 +1431,19 @@ export default function CampeonatoDetalhePage() {
       partidas: (campeonato.partidas || []).filter((p) => p.fase !== "grupos"),
     };
 
-    salvarCampeonatoAtualizado(atualizado);
+    await salvarCampeonatoAtualizado(atualizado);
     setGrupoSelecionado(gruposData[0]?.nome || "Grupo 1");
     setRodadaSelecionada(1);
     setMensagem("Times sorteados com sucesso.");
   }
 
-  function gerarPartidasCampeonato() {
+  async function gerarPartidasCampeonato() {
     if (!campeonato) return;
     if (!jogadorLogado?.isAdmin) return;
 
     if (campeonato.formato === "eliminatorias") {
       const atualizado = gerarMataMataPuro(campeonato, timesNoCampeonato);
-      salvarCampeonatoAtualizado(atualizado);
+      await salvarCampeonatoAtualizado(atualizado);
       setMensagem("Partidas do mata-mata geradas com sucesso.");
       return;
     }
@@ -1284,16 +1466,19 @@ export default function CampeonatoDetalhePage() {
       ],
     };
 
-    salvarCampeonatoAtualizado(atualizado);
+    await salvarCampeonatoAtualizado(atualizado);
     setRodadaSelecionada(1);
     setMensagem("Partidas geradas com sucesso.");
   }
 
   function abrirPartida(partida: Partida) {
     const mandante =
-      timesNoCampeonato.find((t) => String(t.id) === String(partida.mandanteId)) || null;
+      timesNoCampeonato.find((t) => String(t.id) === String(partida.mandanteId)) ||
+      null;
     const visitante =
-      timesNoCampeonato.find((t) => String(t.id) === String(partida.visitanteId)) || null;
+      timesNoCampeonato.find(
+        (t) => String(t.id) === String(partida.visitanteId)
+      ) || null;
 
     setPartidaSelecionada(partida);
     setPlacarMandanteEdicao(partida.golsMandante || 0);
@@ -1322,7 +1507,8 @@ export default function CampeonatoDetalhePage() {
     campo: keyof EstatisticaJogador,
     valor: string | number
   ) {
-    const lista = lado === "mandante" ? [...statsMandanteEdicao] : [...statsVisitanteEdicao];
+    const lista =
+      lado === "mandante" ? [...statsMandanteEdicao] : [...statsVisitanteEdicao];
 
     lista[index] = {
       ...lista[index],
@@ -1336,7 +1522,7 @@ export default function CampeonatoDetalhePage() {
     else setStatsVisitanteEdicao(lista);
   }
 
-  function salvarResultadoPartida() {
+  async function salvarResultadoPartida() {
     if (!campeonato || !partidaSelecionada) return;
     if (!jogadorLogado?.isAdmin) return;
 
@@ -1365,7 +1551,7 @@ export default function CampeonatoDetalhePage() {
     atualizado = gerarMataMataMistoAutomatico(atualizado, timesNoCampeonato);
     atualizado = avancarMataMata(atualizado, timesNoCampeonato);
 
-    salvarCampeonatoAtualizado(atualizado);
+    await salvarCampeonatoAtualizado(atualizado);
     setMensagem("Resultado salvo com sucesso e ranking atualizado.");
     setPartidaSelecionada(null);
   }
@@ -1448,6 +1634,19 @@ export default function CampeonatoDetalhePage() {
 
   const campeao = campeonato ? getCampeao(campeonato, timesNoCampeonato) : null;
 
+  if (carregando) {
+    return (
+      <main style={pageStyle}>
+        <div style={containerStyle}>
+          <Link href="/" style={backLinkStyle}>
+            ← Voltar
+          </Link>
+          <div style={sectionStyle}>Carregando campeonato...</div>
+        </div>
+      </main>
+    );
+  }
+
   if (!campeonato) {
     return (
       <main style={pageStyle}>
@@ -1472,7 +1671,11 @@ export default function CampeonatoDetalhePage() {
           <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: 18 }}>
             <div style={posterBoxStyle}>
               {campeonato.imagem ? (
-                <img src={campeonato.imagem} alt={campeonato.titulo} style={posterImgStyle} />
+                <img
+                  src={campeonato.imagem}
+                  alt={campeonato.titulo}
+                  style={posterImgStyle}
+                />
               ) : null}
             </div>
 
@@ -1484,7 +1687,9 @@ export default function CampeonatoDetalhePage() {
               <div style={subInfoStyle}>
                 Equipes: {Math.min(MAX_TIMES, campeonato.numeroParticipantes)}
               </div>
-              <div style={subInfoStyle}>Participantes atuais: {timesNoCampeonato.length}</div>
+              <div style={subInfoStyle}>
+                Participantes atuais: {timesNoCampeonato.length}
+              </div>
               <div style={subInfoStyle}>Começa: {campeonato.dataCriacao}</div>
               <div style={subInfoStyle}>Formação padrão: 3-5-2</div>
 
@@ -1545,7 +1750,9 @@ export default function CampeonatoDetalhePage() {
                 </div>
               )}
 
-              {mensagem ? <div style={{ marginTop: 12, color: "#dcdcdc" }}>{mensagem}</div> : null}
+              {mensagem ? (
+                <div style={{ marginTop: 12, color: "#dcdcdc" }}>{mensagem}</div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -1565,7 +1772,9 @@ export default function CampeonatoDetalhePage() {
                   <h2 style={{ marginTop: 0 }}>{grupo.nome}</h2>
 
                   <div style={tableWrapStyle}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+                    <table
+                      style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}
+                    >
                       <thead>
                         <tr style={{ background: "#0b0b0b" }}>
                           <th style={thStyle}>#</th>
@@ -1983,14 +2192,18 @@ export default function CampeonatoDetalhePage() {
 
             {!campeao ? (
               <div style={{ color: "#cfcfcf" }}>
-                O campeão aparecerá automaticamente ao fim da final ou ao término de todos os jogos
-                do pontos corridos.
+                O campeão aparecerá automaticamente ao fim da final ou ao término
+                de todos os jogos do pontos corridos.
               </div>
             ) : (
               <div style={championCardStyle}>
                 <div style={championLogoStyle}>
                   {campeao.imagem ? (
-                    <img src={campeao.imagem} alt={campeao.nome} style={championLogoImgStyle} />
+                    <img
+                      src={campeao.imagem}
+                      alt={campeao.nome}
+                      style={championLogoImgStyle}
+                    />
                   ) : null}
                 </div>
 
@@ -2030,7 +2243,9 @@ export default function CampeonatoDetalhePage() {
             </button>
           </div>
 
-          <div style={{ color: "#cfcfcf", marginBottom: 16 }}>Vagas restantes: {vagasRestantes}</div>
+          <div style={{ color: "#cfcfcf", marginBottom: 16 }}>
+            Vagas restantes: {vagasRestantes}
+          </div>
 
           <div style={{ display: "grid", gap: 10 }}>
             {equipesFiltradas.map((time) => (
@@ -2098,7 +2313,9 @@ export default function CampeonatoDetalhePage() {
                     }}
                   >
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ fontWeight: 700, marginBottom: 8 }}>{mandante?.nome || ""}</div>
+                      <div style={{ fontWeight: 700, marginBottom: 8 }}>
+                        {mandante?.nome || ""}
+                      </div>
                       <input
                         type="number"
                         value={placarMandanteEdicao}
@@ -2110,7 +2327,9 @@ export default function CampeonatoDetalhePage() {
                     <div style={{ fontSize: 28, fontWeight: 800 }}>x</div>
 
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ fontWeight: 700, marginBottom: 8 }}>{visitante?.nome || ""}</div>
+                      <div style={{ fontWeight: 700, marginBottom: 8 }}>
+                        {visitante?.nome || ""}
+                      </div>
                       <input
                         type="number"
                         value={placarVisitanteEdicao}
@@ -2137,18 +2356,29 @@ export default function CampeonatoDetalhePage() {
                         {statsMandanteEdicao.map((stat, index) => (
                           <div key={`${stat.jogadorId}-${index}`} style={statsRowStyle}>
                             <input value={stat.jogadorNome} disabled style={statInputNameStyle} />
-                            <input value={getPosicaoExibicao(stat.posicao)} disabled style={statInputPosStyle} />
+                            <input
+                              value={getPosicaoExibicao(stat.posicao)}
+                              disabled
+                              style={statInputPosStyle}
+                            />
                             <input
                               type="number"
                               value={stat.gols}
-                              onChange={(e) => atualizarStat("mandante", index, "gols", e.target.value)}
+                              onChange={(e) =>
+                                atualizarStat("mandante", index, "gols", e.target.value)
+                              }
                               style={statInputMiniStyle}
                             />
                             <input
                               type="number"
                               value={stat.assistencias}
                               onChange={(e) =>
-                                atualizarStat("mandante", index, "assistencias", e.target.value)
+                                atualizarStat(
+                                  "mandante",
+                                  index,
+                                  "assistencias",
+                                  e.target.value
+                                )
                               }
                               style={statInputMiniStyle}
                             />
@@ -2197,18 +2427,29 @@ export default function CampeonatoDetalhePage() {
                         {statsVisitanteEdicao.map((stat, index) => (
                           <div key={`${stat.jogadorId}-${index}`} style={statsRowStyle}>
                             <input value={stat.jogadorNome} disabled style={statInputNameStyle} />
-                            <input value={getPosicaoExibicao(stat.posicao)} disabled style={statInputPosStyle} />
+                            <input
+                              value={getPosicaoExibicao(stat.posicao)}
+                              disabled
+                              style={statInputPosStyle}
+                            />
                             <input
                               type="number"
                               value={stat.gols}
-                              onChange={(e) => atualizarStat("visitante", index, "gols", e.target.value)}
+                              onChange={(e) =>
+                                atualizarStat("visitante", index, "gols", e.target.value)
+                              }
                               style={statInputMiniStyle}
                             />
                             <input
                               type="number"
                               value={stat.assistencias}
                               onChange={(e) =>
-                                atualizarStat("visitante", index, "assistencias", e.target.value)
+                                atualizarStat(
+                                  "visitante",
+                                  index,
+                                  "assistencias",
+                                  e.target.value
+                                )
                               }
                               style={statInputMiniStyle}
                             />
@@ -2628,8 +2869,7 @@ const campoWrapperStyle: React.CSSProperties = {
   borderRadius: 14,
   overflow: "hidden",
   border: "1px solid #2a2a2a",
-  background:
-    "linear-gradient(180deg, #3b7d2a 0%, #2f6c22 50%, #3b7d2a 100%)",
+  background: "linear-gradient(180deg, #3b7d2a 0%, #2f6c22 50%, #3b7d2a 100%)",
   padding: 8,
 };
 

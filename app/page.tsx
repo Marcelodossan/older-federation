@@ -1,16 +1,41 @@
 "use client";
 
 import { useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export default function HomePage() {
   useEffect(() => {
-    const logado = localStorage.getItem("sessaoAtiva");
+    async function verificarSessao() {
+      try {
+        const supabase = createClient();
 
-    if (logado === "true") {
-      window.location.href = "/dashboard";
-    } else {
-      window.location.href = "/login";
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error(error);
+          window.location.href = "/login";
+          return;
+        }
+
+        if (session?.user) {
+          localStorage.setItem("sessaoAtiva", "true");
+          window.location.href = "/dashboard";
+          return;
+        }
+
+        localStorage.removeItem("sessaoAtiva");
+        localStorage.removeItem("jogadorLogado");
+        window.location.href = "/login";
+      } catch (error) {
+        console.error(error);
+        window.location.href = "/login";
+      }
     }
+
+    verificarSessao();
   }, []);
 
   return null;

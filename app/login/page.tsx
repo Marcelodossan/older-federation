@@ -2,43 +2,86 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 const ADMIN_EMAIL = "marcelo.dos.santos.filho03@gmail.com";
 
+type PerfilUsuario = {
+  id: string;
+  nome?: string;
+  nomeCompleto?: string;
+  idOnline?: string;
+  pais?: string;
+  valor?: number;
+  imagem?: string;
+  email?: string;
+  isAdmin?: boolean;
+};
+
 export default function LoginPage() {
+  const supabase = createClient();
+
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [carregando, setCarregando] = useState(false);
 
-  function handleLogin() {
+  async function handleLogin() {
     if (!email || !senha) {
       alert("Preencha email e senha");
       return;
     }
 
-    const usuarios = JSON.parse(localStorage.getItem("usuarios") || "[]");
+    try {
+      setCarregando(true);
 
-    const usuarioEncontrado = usuarios.find(
-      (u: any) =>
-        String(u.email || "").toLowerCase().trim() ===
-          email.toLowerCase().trim() && String(u.senha || "") === senha
-    );
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: senha,
+      });
 
-    if (!usuarioEncontrado) {
-      alert("Email ou senha incorretos");
-      return;
+      if (error || !data.user) {
+        console.error(error);
+        alert("Email ou senha incorretos");
+        return;
+      }
+
+      const user = data.user;
+
+      const { data: perfil, error: perfilError } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (perfilError) {
+        console.error(perfilError);
+      }
+
+      const usuarioLogado: PerfilUsuario = {
+        id: user.id,
+        nome: perfil?.nome || user.user_metadata?.nome || "",
+        nomeCompleto:
+          perfil?.nomeCompleto || user.user_metadata?.nomeCompleto || "",
+        idOnline: perfil?.idOnline || user.user_metadata?.idOnline || "",
+        pais: perfil?.pais || user.user_metadata?.pais || "",
+        valor: perfil?.valor || 0,
+        imagem: perfil?.imagem || user.user_metadata?.imagem || "",
+        email: user.email || "",
+        isAdmin:
+          String(user.email || "").toLowerCase().trim() ===
+          ADMIN_EMAIL.toLowerCase(),
+      };
+
+      localStorage.setItem("jogadorLogado", JSON.stringify(usuarioLogado));
+      localStorage.setItem("sessaoAtiva", "true");
+
+      window.location.href = "/dashboard";
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao fazer login");
+    } finally {
+      setCarregando(false);
     }
-
-    const usuarioLogado = {
-      ...usuarioEncontrado,
-      isAdmin:
-        String(usuarioEncontrado.email || "").toLowerCase().trim() ===
-        ADMIN_EMAIL.toLowerCase(),
-    };
-
-    localStorage.setItem("jogadorLogado", JSON.stringify(usuarioLogado));
-    localStorage.setItem("sessaoAtiva", "true");
-
-    window.location.href = "/dashboard";
   }
 
   return (
@@ -100,8 +143,16 @@ export default function LoginPage() {
             style={{ ...inputStyle, marginTop: 14 }}
           />
 
-          <button onClick={handleLogin} style={buttonStyle}>
-            Entrar
+          <button
+            onClick={handleLogin}
+            style={{
+              ...buttonStyle,
+              opacity: carregando ? 0.7 : 1,
+              cursor: carregando ? "not-allowed" : "pointer",
+            }}
+            disabled={carregando}
+          >
+            {carregando ? "Entrando..." : "Entrar"}
           </button>
 
           <Link
@@ -159,5 +210,4 @@ const buttonStyle: React.CSSProperties = {
   background: "#ff4fd8",
   color: "#fff",
   fontWeight: "bold",
-  cursor: "pointer",
 };

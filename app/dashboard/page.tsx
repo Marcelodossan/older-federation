@@ -2,42 +2,23 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+
+const ADMIN_EMAIL = "marcelo.dos.santos.filho03@gmail.com";
 
 type Usuario = {
+  id?: string;
   nome: string;
   email: string;
   senha?: string;
   foto?: string | null;
+  imagem?: string | null;
   isAdmin?: boolean;
 };
 
-type JogadorAntigo = {
-  idOnline: string;
-  email?: string;
-  nome: string;
-  sobrenome?: string;
-  dataNascimento?: string;
-  whatsapp?: string;
-  pais?: string;
-  idioma?: string;
-  foto?: string | null;
-  valor?: number;
-};
-
-type JogadorNovo = {
-  id?: string;
-  idOnline: string;
-  nome: string;
-  posicao?: string;
-  numero?: string;
-  imagem?: string;
-  foto?: string | null;
-  overall?: number;
-  valor?: number;
-  pais?: string;
-};
-
 type JogadorUI = {
+  id?: string;
   idOnline: string;
   nomeCompleto: string;
   imagem?: string | null;
@@ -45,32 +26,6 @@ type JogadorUI = {
   overall: number;
   posicao?: string;
   numero?: string;
-};
-
-type EquipeAntiga = {
-  nomeClube: string;
-  nomeClubeAbreviado?: string;
-  nacionalidade: string;
-  plataforma: string;
-  instagram?: string;
-  emblema?: string | null;
-  plantel?: any[];
-  campeonatos?: any[];
-};
-
-type EquipeNova = {
-  id: string;
-  nome: string;
-  pais: string;
-  plataforma: string;
-  imagem: string;
-  instagram?: string;
-  vitorias?: number;
-  empates?: number;
-  derrotas?: number;
-  titulos?: number;
-  elenco?: any[];
-  criadoPor?: string;
 };
 
 type EquipeUI = {
@@ -98,10 +53,12 @@ function normalizarJogador(jogador: any): JogadorUI {
   const nomeCompleto =
     jogador?.nomeCompleto ||
     [jogador?.nome, jogador?.sobrenome].filter(Boolean).join(" ").trim() ||
+    jogador?.nome ||
     jogador?.idOnline ||
     "Jogador";
 
   return {
+    id: jogador?.id,
     idOnline: jogador?.idOnline || jogador?.nome || "Sem ID",
     nomeCompleto,
     imagem: jogador?.imagem || jogador?.foto || null,
@@ -141,45 +98,124 @@ function formatarValor(valor?: number) {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [menuAberto, setMenuAberto] = useState(false);
   const [jogador, setJogador] = useState<JogadorUI | null>(null);
   const [equipe, setEquipe] = useState<EquipeUI | null>(null);
   const [campeonatos, setCampeonatos] = useState<Campeonato[]>([]);
+  const [carregando, setCarregando] = useState(true);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const logado = localStorage.getItem("sessaoAtiva");
+    async function carregarDashboard() {
+      try {
+        setCarregando(true);
 
-    if (logado !== "true") {
-      window.location.href = "/login";
-      return;
+        const supabase = createClient();
+
+        const {
+          data: { user },
+          error: sessionError,
+        } = await supabase.auth.getUser();
+
+        if (sessionError) {
+          console.error(sessionError);
+          router.push("/login");
+          return;
+        }
+
+        if (!user) {
+          router.push("/login");
+          return;
+        }
+
+        const { data: perfil, error: perfilError } = await supabase
+          .from("usuarios")
+          .select("*")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (perfilError) {
+          console.error(perfilError);
+        }
+
+        const usuarioAtual: Usuario = {
+          id: user.id,
+          nome:
+            perfil?.nome ||
+            user.user_metadata?.nome ||
+            user.email?.split("@")[0] ||
+            "Usuário",
+          email: user.email || "",
+          foto:
+            perfil?.foto ||
+            perfil?.imagem ||
+            user.user_metadata?.imagem ||
+            null,
+          imagem: perfil?.imagem || user.user_metadata?.imagem || null,
+          isAdmin:
+            String(user.email || "").toLowerCase().trim() ===
+            ADMIN_EMAIL.toLowerCase(),
+        };
+
+        setUsuario(usuarioAtual);
+
+        const { data: jogadoresBanco, error: jogadoresError } = await supabase
+          .from("jogadores")
+          .select("*")
+          .eq("criadoPor", user.id)
+          .order("created_at", { ascending: false });
+
+        if (jogadoresError) {
+          console.error(jogadoresError);
+        }
+
+        if (Array.isArray(jogadoresBanco) && jogadoresBanco.length > 0) {
+          setJogador(normalizarJogador(jogadoresBanco[0]));
+        } else {
+          setJogador(null);
+        }
+
+        const { data: equipesBanco, error: equipesError } = await supabase
+          .from("equipes")
+          .select("*")
+          .eq("criadoPor", user.id)
+          .order("created_at", { ascending: false });
+
+        if (equipesError) {
+          console.error(equipesError);
+        }
+
+        if (Array.isArray(equipesBanco) && equipesBanco.length > 0) {
+          const equipeNormalizada = normalizarEquipe(equipesBanco[0]);
+          setEquipe(equipeNormalizada);
+        } else {
+          setEquipe(null);
+        }
+
+        const { data: campeonatosBanco, error: campeonatosError } =
+          await supabase
+            .from("campeonatos")
+            .select("id, titulo, imagem")
+            .order("created_at", { ascending: false });
+
+        if (campeonatosError) {
+          console.error(campeonatosError);
+          setCampeonatos([]);
+        } else {
+          setCampeonatos((campeonatosBanco || []) as Campeonato[]);
+        }
+      } catch (error) {
+        console.error(error);
+        router.push("/login");
+      } finally {
+        setCarregando(false);
+      }
     }
 
-    const usuarioLogado = localStorage.getItem("jogadorLogado");
-
-    if (usuarioLogado) {
-      const usuarioAtual: Usuario = JSON.parse(usuarioLogado);
-      setUsuario(usuarioAtual);
-    }
-
-    const jogadoresSalvos = JSON.parse(localStorage.getItem("jogadores") || "[]");
-    const equipesSalvas = JSON.parse(localStorage.getItem("equipes") || "[]");
-    const campeonatosSalvos = JSON.parse(localStorage.getItem("campeonatos") || "[]");
-
-    if (Array.isArray(jogadoresSalvos) && jogadoresSalvos.length > 0) {
-      setJogador(normalizarJogador(jogadoresSalvos[0]));
-    }
-
-    if (Array.isArray(equipesSalvas) && equipesSalvas.length > 0) {
-      const equipeNormalizada = normalizarEquipe(equipesSalvas[0]);
-      setEquipe(equipeNormalizada);
-    }
-
-    if (Array.isArray(campeonatosSalvos)) {
-      setCampeonatos(campeonatosSalvos);
-    }
-  }, []);
+    carregarDashboard();
+  }, [router]);
 
   useEffect(() => {
     function handleClickFora(event: MouseEvent) {
@@ -192,22 +228,44 @@ export default function DashboardPage() {
     return () => document.removeEventListener("mousedown", handleClickFora);
   }, []);
 
-  function handleLogout() {
-    localStorage.removeItem("sessaoAtiva");
-    localStorage.removeItem("jogadorLogado");
-    window.location.href = "/login";
+  async function handleLogout() {
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      router.push("/login");
+    }
   }
 
   function handleEditarClube() {
-    if (!equipe) return;
-    localStorage.setItem("equipeEmEdicao", JSON.stringify(equipe.original));
-    window.location.href = "/criar-equipe";
+    if (!equipe?.id) return;
+    router.push("/criar-equipe");
   }
 
   const cardsCampeonatos = useMemo(() => {
     if (campeonatos.length > 0) return campeonatos;
     return [];
   }, [campeonatos]);
+
+  if (carregando) {
+    return (
+      <main
+        style={{
+          minHeight: "100vh",
+          background: "#000",
+          color: "white",
+          fontFamily: "Arial, sans-serif",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        Carregando dashboard...
+      </main>
+    );
+  }
 
   return (
     <main
@@ -556,46 +614,53 @@ export default function DashboardPage() {
                 }}
               >
                 {cardsCampeonatos.map((item) => (
-                  <div
+                  <Link
                     key={item.id}
-                    style={{
-                      width: "130px",
-                      minHeight: "182px",
-                      background: "#0b0b0b",
-                      borderRadius: "8px",
-                      overflow: "hidden",
-                      border: "1px solid #1f1f1f",
-                    }}
+                    href={`/campeonatos/${item.id}`}
+                    style={{ textDecoration: "none", color: "inherit" }}
                   >
                     <div
                       style={{
-                        width: "100%",
-                        height: 130,
-                        background: "#111",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
+                        width: "130px",
+                        minHeight: "182px",
+                        background: "#0b0b0b",
+                        borderRadius: "8px",
+                        overflow: "hidden",
+                        border: "1px solid #1f1f1f",
                       }}
                     >
-                      {item.imagem ? (
-                        <img
-                          src={item.imagem}
-                          alt={item.titulo}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                          }}
-                        />
-                      ) : (
-                        <span style={{ color: "#777", fontSize: 12 }}>Sem imagem</span>
-                      )}
-                    </div>
+                      <div
+                        style={{
+                          width: "100%",
+                          height: 130,
+                          background: "#111",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {item.imagem ? (
+                          <img
+                            src={item.imagem}
+                            alt={item.titulo}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                          />
+                        ) : (
+                          <span style={{ color: "#777", fontSize: 12 }}>
+                            Sem imagem
+                          </span>
+                        )}
+                      </div>
 
-                    <div style={{ padding: 10, fontSize: 13, fontWeight: 700 }}>
-                      {item.titulo}
+                      <div style={{ padding: 10, fontSize: 13, fontWeight: 700 }}>
+                        {item.titulo}
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
@@ -680,11 +745,19 @@ export default function DashboardPage() {
                             }}
                           />
                         ) : (
-                          <span style={{ color: "#ff4fd8", fontSize: "12px" }}>Foto</span>
+                          <span style={{ color: "#ff4fd8", fontSize: "12px" }}>
+                            Foto
+                          </span>
                         )}
                       </div>
 
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "6px",
+                        }}
+                      >
                         <div
                           style={{
                             fontSize: "18px",
@@ -702,8 +775,12 @@ export default function DashboardPage() {
                       </div>
 
                       <div style={{ marginLeft: "auto", textAlign: "right" }}>
-                        <div style={{ fontSize: 16, fontWeight: 800 }}>{jogador.overall}</div>
-                        <div style={{ fontSize: 12, color: "#bdbdbd" }}>Overall</div>
+                        <div style={{ fontSize: 16, fontWeight: 800 }}>
+                          {jogador.overall}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#bdbdbd" }}>
+                          Overall
+                        </div>
                       </div>
                     </>
                   ) : (
@@ -767,11 +844,19 @@ export default function DashboardPage() {
                             }}
                           />
                         ) : (
-                          <span style={{ color: "#ff4fd8", fontSize: "12px" }}>Escudo</span>
+                          <span style={{ color: "#ff4fd8", fontSize: "12px" }}>
+                            Escudo
+                          </span>
                         )}
                       </div>
 
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "6px",
+                        }}
+                      >
                         <div
                           style={{
                             fontSize: "18px",
@@ -797,19 +882,27 @@ export default function DashboardPage() {
                         }}
                       >
                         <div>
-                          <div style={{ fontSize: 16, fontWeight: 800 }}>{equipe.vitorias}</div>
+                          <div style={{ fontSize: 16, fontWeight: 800 }}>
+                            {equipe.vitorias}
+                          </div>
                           <div style={{ fontSize: 12, color: "#bdbdbd" }}>V</div>
                         </div>
                         <div>
-                          <div style={{ fontSize: 16, fontWeight: 800 }}>{equipe.empates}</div>
+                          <div style={{ fontSize: 16, fontWeight: 800 }}>
+                            {equipe.empates}
+                          </div>
                           <div style={{ fontSize: 12, color: "#bdbdbd" }}>E</div>
                         </div>
                         <div>
-                          <div style={{ fontSize: 16, fontWeight: 800 }}>{equipe.derrotas}</div>
+                          <div style={{ fontSize: 16, fontWeight: 800 }}>
+                            {equipe.derrotas}
+                          </div>
                           <div style={{ fontSize: 12, color: "#bdbdbd" }}>D</div>
                         </div>
                         <div>
-                          <div style={{ fontSize: 16, fontWeight: 800 }}>{equipe.titulos}</div>
+                          <div style={{ fontSize: 16, fontWeight: 800 }}>
+                            {equipe.titulos}
+                          </div>
                           <div style={{ fontSize: 12, color: "#bdbdbd" }}>T</div>
                         </div>
                       </div>
