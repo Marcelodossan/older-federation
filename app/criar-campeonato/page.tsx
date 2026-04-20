@@ -85,7 +85,6 @@ function tamanhoAproximadoEmMB(texto: string) {
 
 export default function CriarCampeonatoPage() {
   const router = useRouter();
-  const supabase = createClient();
 
   const [jogadorLogado, setJogadorLogado] = useState<JogadorLogado | null>(null);
   const [titulo, setTitulo] = useState("");
@@ -102,6 +101,8 @@ export default function CriarCampeonatoPage() {
     async function validarAcesso() {
       try {
         setCarregando(true);
+
+        const supabase = createClient();
 
         const {
           data: { user },
@@ -143,7 +144,7 @@ export default function CriarCampeonatoPage() {
     }
 
     validarAcesso();
-  }, [router, supabase]);
+  }, [router]);
 
   async function handleImagemChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -171,6 +172,8 @@ export default function CriarCampeonatoPage() {
     try {
       setMensagem("");
       setSalvando(true);
+
+      const supabase = createClient();
 
       const tituloFinal = titulo.trim();
       const participantesFinal = Number(numeroParticipantes) || 0;
@@ -217,7 +220,7 @@ export default function CriarCampeonatoPage() {
 
       if (erroBusca) {
         console.error(erroBusca);
-        setMensagem("Erro ao validar campeonatos existentes.");
+        setMensagem(`Erro ao validar campeonatos existentes: ${erroBusca.message}`);
         return;
       }
 
@@ -262,8 +265,8 @@ export default function CriarCampeonatoPage() {
         .insert(payload);
 
       if (erroInsert) {
-        console.error(erroInsert);
-        setMensagem("Erro ao salvar campeonato no banco.");
+        console.error("Erro ao salvar campeonato:", erroInsert);
+        setMensagem(`Erro ao salvar campeonato no banco: ${erroInsert.message}`);
         return;
       }
 
