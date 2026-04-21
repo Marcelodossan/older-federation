@@ -451,10 +451,14 @@ export default function CriarEquipePage() {
   }, [campeonatos, equipeId]);
 
   const jogadoresDoClube = useMemo(() => {
-    return jogadores.filter(
-      (jogador) => String(jogador.clubeAtualId || "") === String(equipeId)
-    );
-  }, [jogadores, equipeId]);
+  const idsNoElenco = new Set(elenco.map((item) => String(item.jogadorId)));
+
+  return jogadores.filter(
+    (jogador) =>
+      String(jogador.clubeAtualId || "") === String(equipeId) &&
+      idsNoElenco.has(String(jogador.id))
+  );
+}, [jogadores, elenco, equipeId]);
 
   async function handleUploadEscudo(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

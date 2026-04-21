@@ -460,64 +460,36 @@ export default function DashboardPage() {
                   }}
                 >
                   {jogador ? (
-                    <>
-                      <div
-                        style={{
-                          padding: "12px 12px 2px 12px",
-                          color: "white",
-                          fontWeight: 700,
-                          fontSize: "18px",
-                        }}
-                      >
-                        {formatarValor(jogador.valor)}
-                      </div>
+  <>
+    <div
+      style={{
+        padding: "12px 12px 2px 12px",
+        color: "white",
+        fontWeight: 700,
+        fontSize: "18px",
+      }}
+    >
+      {formatarValor(jogador.valor)}
+    </div>
 
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: 12,
-                          padding: "0 12px 12px 12px",
-                          color: "#cfcfcf",
-                          fontSize: "12px",
-                          borderBottom: "1px solid #222",
-                        }}
-                      >
-                        <span>Valor do jogador</span>
-                        <span style={{ color: "#fff", fontWeight: 700 }}>
-                          {jogador.overall}
-                        </span>
-                      </div>
-
-                      <Link
-                        href="/editar-jogador"
-                        style={{
-                          display: "block",
-                          padding: "12px 14px",
-                          color: "white",
-                          textDecoration: "none",
-                          borderBottom: "1px solid #222",
-                          fontWeight: 700,
-                          fontSize: "16px",
-                        }}
-                      >
-                        Editar jogador
-                      </Link>
-                    </>
-                  ) : (
-                    <Link
-                      href="/criar-jogador"
-                      style={{
-                        display: "block",
-                        padding: "12px 14px",
-                        color: "white",
-                        textDecoration: "none",
-                        borderBottom: "1px solid #222",
-                      }}
-                    >
-                      Criar jogador
-                    </Link>
-                  )}
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 12,
+        padding: "0 12px 12px 12px",
+        color: "#cfcfcf",
+        fontSize: "12px",
+        borderBottom: "1px solid #222",
+      }}
+    >
+      <span>Valor do jogador</span>
+      <span style={{ color: "#fff", fontWeight: 700 }}>
+        {jogador.overall}
+      </span>
+    </div>
+  </>
+) : null}
 
                   {minhaEquipe ? (
                     <button
