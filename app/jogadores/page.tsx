@@ -13,6 +13,7 @@ type Jogador = {
   pais?: string;
   valor?: number | string;
   imagem?: string;
+  clubeAtualId?: string;
 };
 
 const JOGADORES_POR_PAGINA = 12;
@@ -42,15 +43,21 @@ export default function JogadoresPage() {
         }
 
         const listaNormalizada: Jogador[] = Array.isArray(data)
-          ? data.map((item: any) => ({
-              id: item.id,
-              nome: item.nome || "Jogador",
-              nomeCompleto: item.nomeCompleto || item.nome || "Jogador",
-              idOnline: item.idOnline || "",
-              pais: item.pais || "",
-              valor: item.valor || 0,
-              imagem: item.imagem || "",
-            }))
+          ? data
+              .filter(
+                (item: any) =>
+                  item.clubeAtualId && String(item.clubeAtualId).trim() !== ""
+              )
+              .map((item: any) => ({
+                id: item.id,
+                nome: item.nome || "Jogador",
+                nomeCompleto: item.nomeCompleto || item.nome || "Jogador",
+                idOnline: item.idOnline || "",
+                pais: item.pais || "",
+                valor: item.valor || 0,
+                imagem: item.imagem || "",
+                clubeAtualId: item.clubeAtualId || "",
+              }))
           : [];
 
         setJogadores(listaNormalizada);
