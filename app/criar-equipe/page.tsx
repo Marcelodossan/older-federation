@@ -248,6 +248,19 @@ export default function CriarEquipePage() {
   const [numeroJogador, setNumeroJogador] = useState("");
   const [imagemJogador, setImagemJogador] = useState("");
 
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 768);
+    }
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   useEffect(() => {
     async function carregarDados() {
       const supabase = createClient();
@@ -451,14 +464,14 @@ export default function CriarEquipePage() {
   }, [campeonatos, equipeId]);
 
   const jogadoresDoClube = useMemo(() => {
-  const idsNoElenco = new Set(elenco.map((item) => String(item.jogadorId)));
+    const idsNoElenco = new Set(elenco.map((item) => String(item.jogadorId)));
 
-  return jogadores.filter(
-    (jogador) =>
-      String(jogador.clubeAtualId || "") === String(equipeId) &&
-      idsNoElenco.has(String(jogador.id))
-  );
-}, [jogadores, elenco, equipeId]);
+    return jogadores.filter(
+      (jogador) =>
+        String(jogador.clubeAtualId || "") === String(equipeId) &&
+        idsNoElenco.has(String(jogador.id))
+    );
+  }, [jogadores, elenco, equipeId]);
 
   async function handleUploadEscudo(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -804,7 +817,9 @@ export default function CriarEquipePage() {
 
       if (erroEquipe) {
         console.error(erroEquipe);
-        setMensagem(`Jogador salvo, mas houve erro ao atualizar o elenco: ${erroEquipe.message}`);
+        setMensagem(
+          `Jogador salvo, mas houve erro ao atualizar o elenco: ${erroEquipe.message}`
+        );
         return;
       }
 
@@ -860,7 +875,9 @@ export default function CriarEquipePage() {
 
       if (erroDeleteJogador) {
         console.error(erroDeleteJogador);
-        setMensagem(`Erro ao remover jogador do banco: ${erroDeleteJogador.message}`);
+        setMensagem(
+          `Erro ao remover jogador do banco: ${erroDeleteJogador.message}`
+        );
         return;
       }
 
@@ -905,7 +922,9 @@ export default function CriarEquipePage() {
 
       if (erroEquipe) {
         console.error(erroEquipe);
-        setMensagem(`Jogador removido, mas erro ao atualizar elenco: ${erroEquipe.message}`);
+        setMensagem(
+          `Jogador removido, mas erro ao atualizar elenco: ${erroEquipe.message}`
+        );
         return;
       }
 
@@ -931,7 +950,7 @@ export default function CriarEquipePage() {
         background: "#000",
         color: "#fff",
         fontFamily: "Arial, sans-serif",
-        padding: 18,
+        padding: isMobile ? 12 : 18,
       }}
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
@@ -943,6 +962,7 @@ export default function CriarEquipePage() {
             fontWeight: 700,
             display: "inline-block",
             marginBottom: 18,
+            fontSize: isMobile ? 15 : 16,
           }}
         >
           ← Voltar para dashboard
@@ -956,6 +976,7 @@ export default function CriarEquipePage() {
               background: "rgba(255,79,216,0.08)",
               border: "1px solid rgba(255,79,216,0.22)",
               borderRadius: 12,
+              fontSize: isMobile ? 14 : 16,
             }}
           >
             {mensagem}
@@ -981,14 +1002,14 @@ export default function CriarEquipePage() {
               background: "#050505",
               border: "1px solid #151515",
               borderRadius: 22,
-              padding: 18,
+              padding: isMobile ? 12 : 18,
             }}
           >
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "300px 1fr",
-                gap: 22,
+                gridTemplateColumns: isMobile ? "1fr" : "300px 1fr",
+                gap: isMobile ? 16 : 22,
                 alignItems: "start",
               }}
             >
@@ -1003,8 +1024,8 @@ export default function CriarEquipePage() {
                 >
                   <div
                     style={{
-                      width: 96,
-                      height: 96,
+                      width: isMobile ? 82 : 96,
+                      height: isMobile ? 82 : 96,
                       borderRadius: 14,
                       background: "#111",
                       overflow: "hidden",
@@ -1031,14 +1052,32 @@ export default function CriarEquipePage() {
                   </div>
 
                   <div>
-                    <div style={{ fontSize: 28, fontWeight: 800 }}>
+                    <div
+                      style={{
+                        fontSize: isMobile ? 22 : 28,
+                        fontWeight: 800,
+                        lineHeight: 1.1,
+                      }}
+                    >
                       {nome || "Nome do clube"}
                     </div>
-                    <div style={{ color: "#d0d0d0", fontSize: 16 }}>
+                    <div
+                      style={{
+                        color: "#d0d0d0",
+                        fontSize: isMobile ? 14 : 16,
+                      }}
+                    >
                       {pais || "Brasil"} • {plataforma || "PC"}
                     </div>
                     {modoEdicao && (
-                      <div style={{ color: "#8d8d8d", fontSize: 13, marginTop: 6 }}>
+                      <div
+                        style={{
+                          color: "#8d8d8d",
+                          fontSize: 13,
+                          marginTop: 6,
+                          wordBreak: "break-all",
+                        }}
+                      >
                         ID do clube: {equipeId}
                       </div>
                     )}
@@ -1145,11 +1184,18 @@ export default function CriarEquipePage() {
                         background: "#070707",
                         border: "1px solid #181818",
                         borderRadius: 18,
-                        padding: 18,
+                        padding: isMobile ? 14 : 18,
                         marginBottom: 18,
                       }}
                     >
-                      <h2 style={{ margin: 0, fontSize: 34, marginBottom: 14 }}>
+                      <h2
+                        style={{
+                          margin: 0,
+                          fontSize: isMobile ? 22 : 34,
+                          marginBottom: 14,
+                          lineHeight: 1.2,
+                        }}
+                      >
                         Elenco {elenco.length}/{LIMITE_ELENCO} Jogadores
                       </h2>
 
@@ -1204,7 +1250,7 @@ export default function CriarEquipePage() {
                         background: "#070707",
                         border: "1px solid #181818",
                         borderRadius: 18,
-                        padding: 18,
+                        padding: isMobile ? 14 : 18,
                         marginBottom: 18,
                       }}
                     >
@@ -1213,7 +1259,9 @@ export default function CriarEquipePage() {
                       <div
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "repeat(2, 1fr)",
+                          gridTemplateColumns: isMobile
+                            ? "1fr"
+                            : "repeat(2, 1fr)",
                           gap: 12,
                         }}
                       >
@@ -1295,7 +1343,7 @@ export default function CriarEquipePage() {
                         background: "#070707",
                         border: "1px solid #181818",
                         borderRadius: 18,
-                        padding: 18,
+                        padding: isMobile ? 14 : 18,
                       }}
                     >
                       <div
@@ -1311,8 +1359,9 @@ export default function CriarEquipePage() {
                       <div
                         style={{
                           display: "grid",
-                          gridTemplateColumns:
-                            "repeat(auto-fit, minmax(180px, 1fr))",
+                          gridTemplateColumns: isMobile
+                            ? "1fr"
+                            : "repeat(auto-fit, minmax(180px, 1fr))",
                           gap: 12,
                         }}
                       >
@@ -1334,7 +1383,7 @@ export default function CriarEquipePage() {
                               <div
                                 style={{
                                   width: "100%",
-                                  height: 160,
+                                  height: isMobile ? 210 : 160,
                                   background: "#101010",
                                   display: "flex",
                                   alignItems: "center",
@@ -1402,7 +1451,7 @@ export default function CriarEquipePage() {
                       background: "#070707",
                       border: "1px solid #181818",
                       borderRadius: 18,
-                      padding: 18,
+                      padding: isMobile ? 14 : 18,
                     }}
                   >
                     <h2 style={{ marginTop: 0 }}>Calendário do clube</h2>
@@ -1444,7 +1493,7 @@ export default function CriarEquipePage() {
                       background: "#070707",
                       border: "1px solid #181818",
                       borderRadius: 18,
-                      padding: 18,
+                      padding: isMobile ? 14 : 18,
                     }}
                   >
                     <h2 style={{ marginTop: 0 }}>Títulos</h2>

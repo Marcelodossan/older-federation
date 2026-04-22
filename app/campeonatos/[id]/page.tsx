@@ -763,6 +763,13 @@ function todasPartidasDeGrupoFinalizadas(campeonato: Campeonato) {
   );
 }
 
+function getNomeFaseInicialEliminatorias(totalTimes: number) {
+  if (totalTimes >= 17) return "Oitavas de final";
+  if (totalTimes >= 9) return "Quartas de final";
+  if (totalTimes >= 5) return "Semifinal";
+  return "Final";
+}
+
 function gerarMataMataPuro(
   campeonato: Campeonato,
   timesBase: Equipe[]
@@ -775,11 +782,7 @@ function gerarMataMataPuro(
   );
   if (partidasExistentes.length > 0) return campeonato;
 
-  let faseNome = "Final";
-  if (times.length > 16) faseNome = "Oitavas de final";
-  else if (times.length > 8) faseNome = "Quartas de final";
-  else if (times.length > 2) faseNome = "Semi-finais";
-
+  const faseNome = getNomeFaseInicialEliminatorias(times.length);
   const partidas: Partida[] = [];
 
   for (let i = 0; i < times.length; i += 2) {
@@ -874,7 +877,7 @@ function gerarMataMataMistoAutomatico(
       partidas.push({
         id: uid(),
         fase: "mata-mata",
-        faseNome: "Semi-finais",
+        faseNome: "Semifinal",
         rodada: 1,
         mandanteId: String(a.id),
         visitanteId: String(b.id),
@@ -900,10 +903,10 @@ function gerarMataMataMistoAutomatico(
     const g4 = grupos[3].equipes;
 
     const confrontos = [
-      [g1[0]?.equipe || null, g3[1]?.equipe || null],
-      [g1[1]?.equipe || null, g3[0]?.equipe || null],
-      [g2[0]?.equipe || null, g4[1]?.equipe || null],
-      [g2[1]?.equipe || null, g4[0]?.equipe || null],
+      [g1[0]?.equipe || null, g2[1]?.equipe || null],
+      [g2[0]?.equipe || null, g1[1]?.equipe || null],
+      [g3[0]?.equipe || null, g4[1]?.equipe || null],
+      [g4[0]?.equipe || null, g3[1]?.equipe || null],
     ];
 
     confrontos.forEach(([a, b]) => {
@@ -930,6 +933,51 @@ function gerarMataMataMistoAutomatico(
     };
   }
 
+  if (grupos.length === 8) {
+    const g1 = grupos[0].equipes;
+    const g2 = grupos[1].equipes;
+    const g3 = grupos[2].equipes;
+    const g4 = grupos[3].equipes;
+    const g5 = grupos[4].equipes;
+    const g6 = grupos[5].equipes;
+    const g7 = grupos[6].equipes;
+    const g8 = grupos[7].equipes;
+
+    const confrontos = [
+      [g1[0]?.equipe || null, g2[1]?.equipe || null],
+      [g2[0]?.equipe || null, g1[1]?.equipe || null],
+      [g3[0]?.equipe || null, g4[1]?.equipe || null],
+      [g4[0]?.equipe || null, g3[1]?.equipe || null],
+      [g5[0]?.equipe || null, g6[1]?.equipe || null],
+      [g6[0]?.equipe || null, g5[1]?.equipe || null],
+      [g7[0]?.equipe || null, g8[1]?.equipe || null],
+      [g8[0]?.equipe || null, g7[1]?.equipe || null],
+    ];
+
+    confrontos.forEach(([a, b]) => {
+      if (!a || !b) return;
+      partidas.push({
+        id: uid(),
+        fase: "mata-mata",
+        faseNome: "Oitavas de final",
+        rodada: 1,
+        mandanteId: String(a.id),
+        visitanteId: String(b.id),
+        golsMandante: 0,
+        golsVisitante: 0,
+        status: "pendente",
+        data: "",
+        estatisticasMandante: gerarEstatisticasVazias(a),
+        estatisticasVisitante: gerarEstatisticasVazias(b),
+      });
+    });
+
+    return {
+      ...campeonato,
+      partidas: [...(campeonato.partidas || []), ...partidas],
+    };
+  }
+
   return campeonato;
 }
 
@@ -938,7 +986,7 @@ function avancarMataMata(campeonato: Campeonato, times: Equipe[]): Campeonato {
   const fasesOrdem = [
     "Oitavas de final",
     "Quartas de final",
-    "Semi-finais",
+    "Semifinal",
     "Final",
   ];
 
@@ -1033,6 +1081,8 @@ export default function CampeonatoDetalhePage() {
   const [tabAtiva, setTabAtiva] = useState<TabKey>("grupos");
   const [rankingCategoria, setRankingCategoria] =
     useState<RankingCategoria>("goleiro");
+
+  const [faseAtiva, setFaseAtiva] = useState("");
 
   const [buscaTime, setBuscaTime] = useState("");
   const [buscaAplicada, setBuscaAplicada] = useState("");
@@ -1194,6 +1244,32 @@ export default function CampeonatoDetalhePage() {
     return (campeonato.partidas || []).filter((p) => p.fase === "mata-mata");
   }, [campeonato]);
 
+  const fasesMataMata = useMemo(() => {
+    const fasesUnicas = Array.from(
+      new Set((partidasMataMata || []).map((p) => p.faseNome).filter(Boolean))
+    ) as string[];
+
+    const ordem = [
+      "Oitavas de final",
+      "Quartas de final",
+      "Semifinal",
+      "Final",
+    ];
+
+    return ordem.filter((fase) => fasesUnicas.includes(fase));
+  }, [partidasMataMata]);
+
+  useEffect(() => {
+    if (fasesMataMata.length && !fasesMataMata.includes(faseAtiva)) {
+      setFaseAtiva(fasesMataMata[0]);
+    }
+  }, [fasesMataMata, faseAtiva]);
+
+  const partidasDaFaseAtiva = useMemo(() => {
+    if (!faseAtiva) return partidasMataMata;
+    return partidasMataMata.filter((p) => p.faseNome === faseAtiva);
+  }, [partidasMataMata, faseAtiva]);
+
   const rankingRows = useMemo(() => {
     if (!campeonato) return [];
 
@@ -1237,7 +1313,7 @@ export default function CampeonatoDetalhePage() {
       );
     }
 
-    return ordenadas.map((item, index) => ({
+    return ordenadas.slice(0, 15).map((item, index) => ({
       posicao: index + 1,
       jogador: item.jogador,
       equipe: item.equipe,
@@ -1962,6 +2038,20 @@ export default function CampeonatoDetalhePage() {
           <section style={sectionStyle}>
             <h2 style={{ marginTop: 0 }}>Mata-mata</h2>
 
+            {fasesMataMata.length > 0 && (
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+                {fasesMataMata.map((fase) => (
+                  <button
+                    key={fase}
+                    onClick={() => setFaseAtiva(fase)}
+                    style={smallTabStyle(faseAtiva === fase)}
+                  >
+                    {fase}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div style={{ display: "grid", gap: 14 }}>
               {partidasMataMata.length === 0 ? (
                 <div style={{ color: "#cfcfcf" }}>
@@ -1970,7 +2060,7 @@ export default function CampeonatoDetalhePage() {
                     : "Clique em gerar partidas para montar o mata-mata."}
                 </div>
               ) : (
-                partidasMataMata.map((partida, index) => {
+                partidasDaFaseAtiva.map((partida, index) => {
                   const mandante =
                     timesNoCampeonato.find(
                       (t) => String(t.id) === String(partida.mandanteId)
