@@ -2208,12 +2208,13 @@ export default function CampeonatoDetalhePage() {
               <h3 style={{ marginTop: 0, marginBottom: 16 }}>Escalação do campeonato</h3>
 
               <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "320px 1fr",
-                  gap: 18,
-                  alignItems: "start",
-                }}
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: 18,
+    alignItems: "start",
+    width: "100%",
+  }}
               >
                 <div>
                   <div
@@ -2593,12 +2594,16 @@ const pageStyle: React.CSSProperties = {
   background: "#000",
   color: "#fff",
   fontFamily: "Arial, sans-serif",
-  padding: "24px 16px 40px",
+  padding: "24px 12px 40px",
+  overflowX: "hidden",
 };
 
 const containerStyle: React.CSSProperties = {
+  width: "100%",
   maxWidth: "1180px",
   margin: "0 auto",
+  boxSizing: "border-box",
+  overflowX: "hidden",
 };
 
 const backLinkStyle: React.CSSProperties = {
@@ -2719,9 +2724,11 @@ const selectStyle: React.CSSProperties = {
 };
 
 const tableWrapStyle: React.CSSProperties = {
+  width: "100%",
   overflowX: "auto",
   borderRadius: 16,
   border: "1px solid #1c1c1c",
+  boxSizing: "border-box",
 };
 
 const thStyle: React.CSSProperties = {
@@ -2961,6 +2968,7 @@ const campoWrapperStyle: React.CSSProperties = {
   border: "1px solid #2a2a2a",
   background: "linear-gradient(180deg, #3b7d2a 0%, #2f6c22 50%, #3b7d2a 100%)",
   padding: 8,
+  boxSizing: "border-box",
 };
 
 const campoInternoStyle: React.CSSProperties = {

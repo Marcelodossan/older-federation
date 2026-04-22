@@ -277,6 +277,8 @@ export default function DashboardPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          padding: "16px",
+          boxSizing: "border-box",
         }}
       >
         Carregando dashboard...
@@ -291,20 +293,27 @@ export default function DashboardPage() {
         background: "#000",
         color: "white",
         fontFamily: "Arial, sans-serif",
+        overflowX: "hidden",
       }}
     >
       <header
         style={{
           padding: "22px 18px 14px 18px",
           borderBottom: "1px solid rgba(255,255,255,0.04)",
+          boxSizing: "border-box",
         }}
       >
         <div
           style={{
+            width: "100%",
+            maxWidth: "1280px",
+            margin: "0 auto",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "flex-start",
             gap: "20px",
+            flexWrap: "wrap",
+            boxSizing: "border-box",
           }}
         >
           <div
@@ -313,6 +322,7 @@ export default function DashboardPage() {
               alignItems: "center",
               gap: "28px",
               flexWrap: "wrap",
+              minWidth: 0,
             }}
           >
             <div>
@@ -341,7 +351,7 @@ export default function DashboardPage() {
             <nav
               style={{
                 display: "flex",
-                gap: "28px",
+                gap: "20px",
                 marginTop: "10px",
                 fontSize: "14px",
                 flexWrap: "wrap",
@@ -389,6 +399,7 @@ export default function DashboardPage() {
               alignItems: "center",
               gap: "18px",
               marginTop: "2px",
+              flexWrap: "wrap",
             }}
           >
             <div
@@ -454,42 +465,43 @@ export default function DashboardPage() {
                     border: "1px solid #2a2a2a",
                     borderRadius: "12px",
                     minWidth: "220px",
+                    maxWidth: "90vw",
                     overflow: "hidden",
                     zIndex: 20,
                     boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
                   }}
                 >
                   {jogador ? (
-  <>
-    <div
-      style={{
-        padding: "12px 12px 2px 12px",
-        color: "white",
-        fontWeight: 700,
-        fontSize: "18px",
-      }}
-    >
-      {formatarValor(jogador.valor)}
-    </div>
+                    <>
+                      <div
+                        style={{
+                          padding: "12px 12px 2px 12px",
+                          color: "white",
+                          fontWeight: 700,
+                          fontSize: "18px",
+                        }}
+                      >
+                        {formatarValor(jogador.valor)}
+                      </div>
 
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: 12,
-        padding: "0 12px 12px 12px",
-        color: "#cfcfcf",
-        fontSize: "12px",
-        borderBottom: "1px solid #222",
-      }}
-    >
-      <span>Valor do jogador</span>
-      <span style={{ color: "#fff", fontWeight: 700 }}>
-        {jogador.overall}
-      </span>
-    </div>
-  </>
-) : null}
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          padding: "0 12px 12px 12px",
+                          color: "#cfcfcf",
+                          fontSize: "12px",
+                          borderBottom: "1px solid #222",
+                        }}
+                      >
+                        <span>Valor do jogador</span>
+                        <span style={{ color: "#fff", fontWeight: 700 }}>
+                          {jogador.overall}
+                        </span>
+                      </div>
+                    </>
+                  ) : null}
 
                   {minhaEquipe ? (
                     <button
@@ -546,10 +558,15 @@ export default function DashboardPage() {
 
       <section
         style={{
+          width: "100%",
+          maxWidth: "1280px",
+          margin: "0 auto",
           padding: "14px 16px 28px 16px",
           display: "flex",
           flexDirection: "column",
           gap: "14px",
+          boxSizing: "border-box",
+          overflowX: "hidden",
         }}
       >
         <div
@@ -558,6 +575,7 @@ export default function DashboardPage() {
             border: "1px solid #1f1f1f",
             borderRadius: "18px",
             padding: "12px",
+            boxSizing: "border-box",
           }}
         >
           <div
@@ -567,6 +585,7 @@ export default function DashboardPage() {
               borderRadius: "14px",
               padding: "18px 14px 22px 14px",
               minHeight: "180px",
+              boxSizing: "border-box",
             }}
           >
             <h2
@@ -596,10 +615,12 @@ export default function DashboardPage() {
             ) : (
               <div
                 style={{
-                  display: "flex",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
                   gap: "18px",
-                  flexWrap: "wrap",
                   paddingLeft: "8px",
+                  width: "100%",
+                  boxSizing: "border-box",
                 }}
               >
                 {cardsCampeonatos.map((item) => (
@@ -610,12 +631,13 @@ export default function DashboardPage() {
                   >
                     <div
                       style={{
-                        width: "130px",
+                        width: "100%",
                         minHeight: "182px",
                         background: "#0b0b0b",
                         borderRadius: "8px",
                         overflow: "hidden",
                         border: "1px solid #1f1f1f",
+                        boxSizing: "border-box",
                       }}
                     >
                       <div
@@ -662,6 +684,7 @@ export default function DashboardPage() {
             border: "1px solid #1f1f1f",
             borderRadius: "18px",
             padding: "12px",
+            boxSizing: "border-box",
           }}
         >
           <div
@@ -671,16 +694,18 @@ export default function DashboardPage() {
               borderRadius: "14px",
               padding: "18px 14px 16px 14px",
               minHeight: "260px",
+              boxSizing: "border-box",
             }}
           >
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr",
+                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
                 gap: "28px",
+                alignItems: "start",
               }}
             >
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <h2
                   style={{
                     margin: "0 0 12px 8px",
@@ -695,7 +720,6 @@ export default function DashboardPage() {
                 <div
                   style={{
                     width: "100%",
-                    maxWidth: "420px",
                     minHeight: "120px",
                     background: "#0b0b0b",
                     marginLeft: "8px",
@@ -705,6 +729,8 @@ export default function DashboardPage() {
                     alignItems: "flex-start",
                     gap: "14px",
                     border: "1px solid #1f1f1f",
+                    boxSizing: "border-box",
+                    flexWrap: "wrap",
                   }}
                 >
                   {jogador ? (
@@ -745,6 +771,8 @@ export default function DashboardPage() {
                           display: "flex",
                           flexDirection: "column",
                           gap: "6px",
+                          minWidth: 0,
+                          flex: 1,
                         }}
                       >
                         <div
@@ -752,6 +780,7 @@ export default function DashboardPage() {
                             fontSize: "18px",
                             fontWeight: 700,
                             color: "white",
+                            wordBreak: "break-word",
                           }}
                         >
                           {jogador.idOnline}
@@ -763,7 +792,12 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      <div style={{ marginLeft: "auto", textAlign: "right" }}>
+                      <div
+                        style={{
+                          marginLeft: "auto",
+                          textAlign: "right",
+                        }}
+                      >
                         <div style={{ fontSize: 16, fontWeight: 800 }}>
                           {jogador.overall}
                         </div>
@@ -778,7 +812,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <h2
                   style={{
                     margin: "0 0 12px 8px",
@@ -794,7 +828,6 @@ export default function DashboardPage() {
                 <div
                   style={{
                     width: "100%",
-                    maxWidth: "420px",
                     minHeight: "120px",
                     background: "#0b0b0b",
                     borderRadius: "10px",
@@ -803,6 +836,8 @@ export default function DashboardPage() {
                     alignItems: "flex-start",
                     gap: "14px",
                     border: "1px solid #1f1f1f",
+                    boxSizing: "border-box",
+                    flexWrap: "wrap",
                   }}
                 >
                   {topEquipe ? (
@@ -844,6 +879,8 @@ export default function DashboardPage() {
                           display: "flex",
                           flexDirection: "column",
                           gap: "6px",
+                          minWidth: 0,
+                          flex: 1,
                         }}
                       >
                         <div
@@ -851,6 +888,7 @@ export default function DashboardPage() {
                             fontSize: "18px",
                             fontWeight: 700,
                             color: "white",
+                            wordBreak: "break-word",
                           }}
                         >
                           {topEquipe.nome}
@@ -865,9 +903,10 @@ export default function DashboardPage() {
                         style={{
                           marginLeft: "auto",
                           display: "grid",
-                          gridTemplateColumns: "repeat(4, 1fr)",
+                          gridTemplateColumns: "repeat(4, minmax(18px, 1fr))",
                           gap: 12,
                           textAlign: "center",
+                          minWidth: "fit-content",
                         }}
                       >
                         <div>
