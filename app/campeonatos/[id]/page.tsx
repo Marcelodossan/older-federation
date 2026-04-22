@@ -764,9 +764,9 @@ function todasPartidasDeGrupoFinalizadas(campeonato: Campeonato) {
 }
 
 function getNomeFaseInicialEliminatorias(totalTimes: number) {
-  if (totalTimes >= 17) return "Oitavas de final";
-  if (totalTimes >= 9) return "Quartas de final";
-  if (totalTimes >= 5) return "Semifinal";
+  if (totalTimes >= 16) return "Oitavas de final";
+  if (totalTimes >= 8) return "Quartas de final";
+  if (totalTimes >= 4) return "Semifinal";
   return "Final";
 }
 
