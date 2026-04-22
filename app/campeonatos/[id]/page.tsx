@@ -997,9 +997,8 @@ function avancarMataMata(campeonato: Campeonato, times: Equipe[]): Campeonato {
     );
 
     if (!partidasDaFase.length) continue;
-    if (!partidasDaFase.every((p) => p.status === "finalizado")) {
+    if (!partidasDaFase.every((p) => p.status === "finalizado"))
       return campeonato;
-    }
 
     const proximaFase = fasesOrdem[i + 1];
     if (!proximaFase) return campeonato;
@@ -1084,6 +1083,7 @@ export default function CampeonatoDetalhePage() {
     useState<RankingCategoria>("goleiro");
 
   const [faseAtiva, setFaseAtiva] = useState("");
+
   const [buscaTime, setBuscaTime] = useState("");
   const [buscaAplicada, setBuscaAplicada] = useState("");
   const [mensagem, setMensagem] = useState("");
@@ -1102,6 +1102,7 @@ export default function CampeonatoDetalhePage() {
   const [statsVisitanteEdicao, setStatsVisitanteEdicao] = useState<
     EstatisticaJogador[]
   >([]);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     async function carregarDados() {
@@ -1216,6 +1217,29 @@ export default function CampeonatoDetalhePage() {
     }
   }, [grupos, grupoSelecionado]);
 
+  const totalRodadasGrupoSelecionado = useMemo(() => {
+    if (!campeonato) return 1;
+    const rodadas = (campeonato.partidas || [])
+      .filter((p) => p.fase === "grupos" && p.grupoNome === grupoSelecionado)
+      .map((p) => p.rodada);
+    return rodadas.length ? Math.max(...rodadas) : 1;
+  }, [campeonato, grupoSelecionado]);
+
+  const partidasDoGrupoSelecionado = useMemo(() => {
+    if (!campeonato) return [];
+    if (campeonato.formato === "pontos-corridos") {
+      return (campeonato.partidas || []).filter(
+        (p) => p.fase === "grupos" && p.rodada === rodadaSelecionada
+      );
+    }
+    return (campeonato.partidas || []).filter(
+      (p) =>
+        p.fase === "grupos" &&
+        p.grupoNome === grupoSelecionado &&
+        p.rodada === rodadaSelecionada
+    );
+  }, [campeonato, grupoSelecionado, rodadaSelecionada]);
+
   const partidasMataMata = useMemo(() => {
     if (!campeonato) return [];
     return (campeonato.partidas || []).filter((p) => p.fase === "mata-mata");
@@ -1302,6 +1326,17 @@ export default function CampeonatoDetalhePage() {
       defesas: item.defesas,
     }));
   }, [campeonato, rankingCategoria, timesNoCampeonato]);
+
+  useEffect(() => {
+  function handleResize() {
+    setIsMobile(window.innerWidth <= 900);
+  }
+
+  handleResize();
+  window.addEventListener("resize", handleResize);
+
+  return () => window.removeEventListener("resize", handleResize);
+}, []);
 
   const escalacaoDoCampeonato = useMemo(() => {
     if (!campeonato) return [];
@@ -1721,14 +1756,7 @@ export default function CampeonatoDetalhePage() {
         </Link>
 
         <section style={sectionStyle}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 18,
-              alignItems: "start",
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: 18 }}>
             <div style={posterBoxStyle}>
               {campeonato.imagem ? (
                 <img
@@ -1819,44 +1847,19 @@ export default function CampeonatoDetalhePage() {
 
         {tabAtiva === "grupos" && visibleTabs.includes("grupos") && (
           <section
-            style={{
-              ...sectionStyle,
-              display: "grid",
-              gap: 18,
-              width: "100%",
-              boxSizing: "border-box",
-              overflowX: "hidden",
-            }}
-          >
-            {grupos.map((grupo) => {
-              const totalRodadasDoGrupo =
-                campeonato.formato === "pontos-corridos"
-                  ? Math.max(
-                      1,
-                      ...((campeonato.partidas || [])
-                        .filter((p) => p.fase === "grupos")
-                        .map((p) => p.rodada) || [1])
-                    )
-                  : Math.max(
-                      1,
-                      ...((campeonato.partidas || [])
-                        .filter((p) => p.fase === "grupos" && p.grupoNome === grupo.nome)
-                        .map((p) => p.rodada) || [1])
-                    );
-
-              const partidasDoGrupo = (campeonato.partidas || []).filter((p) => {
-                if (campeonato.formato === "pontos-corridos") {
-                  return p.fase === "grupos" && p.rodada === rodadaSelecionada;
-                }
-
-                return (
-                  p.fase === "grupos" &&
-                  p.grupoNome === grupo.nome &&
-                  p.rodada === rodadaSelecionada
-                );
-              });
-
-              return (
+  style={{
+    ...sectionStyle,
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "1.45fr 0.95fr",
+    gap: 18,
+    alignItems: "start",
+    width: "100%",
+    boxSizing: "border-box",
+    overflowX: "hidden",
+  }}
+>
+            <div style={{ display: "grid", gap: 18 }}>
+              {grupos.map((grupo) => (
                 <div key={grupo.nome} style={boxStyle}>
                   <h2 style={{ marginTop: 0 }}>{grupo.nome}</h2>
 
@@ -1909,133 +1912,158 @@ export default function CampeonatoDetalhePage() {
                       </tbody>
                     </table>
                   </div>
-
-                  <div style={{ marginTop: 18 }}>
-                    <h3 style={{ marginTop: 0, marginBottom: 12 }}>Jogos</h3>
-
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-                      {Array.from({ length: totalRodadasDoGrupo }).map((_, index) => {
-                        const rodada = index + 1;
-                        return (
-                          <button
-                            key={`${grupo.nome}-rodada-${rodada}`}
-                            onClick={() => {
-                              setGrupoSelecionado(grupo.nome);
-                              setRodadaSelecionada(rodada);
-                            }}
-                            style={smallTabStyle(
-                              grupoSelecionado === grupo.nome &&
-                                rodadaSelecionada === rodada
-                            )}
-                          >
-                            {rodada}ª Rodada
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div style={{ display: "grid", gap: 12 }}>
-                      {partidasDoGrupo.map((partida) => {
-                        const mandante =
-                          timesNoCampeonato.find(
-                            (t) => String(t.id) === String(partida.mandanteId)
-                          ) || null;
-                        const visitante =
-                          timesNoCampeonato.find(
-                            (t) => String(t.id) === String(partida.visitanteId)
-                          ) || null;
-
-                        return (
-                          <button
-                            key={partida.id}
-                            onClick={() => abrirPartida(partida)}
-                            style={matchCardStyle}
-                          >
-                            <div
-                              style={{
-                                display: "grid",
-                                gridTemplateColumns: "42px 1fr auto 1fr 42px",
-                                gap: 10,
-                                alignItems: "center",
-                              }}
-                            >
-                              <div style={matchLogoBoxStyle}>
-                                {mandante?.imagem ? (
-                                  <img
-                                    src={mandante.imagem}
-                                    alt={mandante.nome}
-                                    style={matchLogoImgStyle}
-                                  />
-                                ) : null}
-                              </div>
-
-                              <div style={{ textAlign: "left", fontWeight: 700 }}>
-                                {mandante?.nome || "Time"}
-                              </div>
-
-                              <div style={matchScoreStyle}>
-                                {partida.status === "finalizado"
-                                  ? `${partida.golsMandante} x ${partida.golsVisitante}`
-                                  : "0 x 0"}
-                              </div>
-
-                              <div style={{ textAlign: "right", fontWeight: 700 }}>
-                                {visitante?.nome || "Time"}
-                              </div>
-
-                              <div style={matchLogoBoxStyle}>
-                                {visitante?.imagem ? (
-                                  <img
-                                    src={visitante.imagem}
-                                    alt={visitante.nome}
-                                    style={matchLogoImgStyle}
-                                  />
-                                ) : null}
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-
-                      {partidasDoGrupo.length === 0 && (
-                        <div style={{ color: "#bdbdbd" }}>Nenhuma partida gerada nesta rodada.</div>
-                      )}
-                    </div>
-                  </div>
                 </div>
-              );
-            })}
+              ))}
 
-            <div style={boxStyle}>
-              <h2 style={{ marginTop: 0 }}>Times no campeonato</h2>
+              <div style={boxStyle}>
+                <h2 style={{ marginTop: 0 }}>Times no campeonato</h2>
 
-              <div style={{ display: "grid", gap: 10 }}>
-                {timesNoCampeonato.map((time) => (
-                  <div key={time.id} style={inviteRowStyle}>
-                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                      <div style={inviteLogoStyle}>
-                        {time.imagem ? (
-                          <img src={time.imagem} alt={time.nome} style={inviteLogoImgStyle} />
-                        ) : null}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 700 }}>{time.nome}</div>
-                        <div style={{ color: "#bbb", fontSize: 13 }}>
-                          {time.pais} • {time.plataforma}
+                <div style={{ display: "grid", gap: 10 }}>
+                  {timesNoCampeonato.map((time) => (
+                    <div key={time.id} style={inviteRowStyle}>
+                      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                        <div style={inviteLogoStyle}>
+                          {time.imagem ? (
+                            <img src={time.imagem} alt={time.nome} style={inviteLogoImgStyle} />
+                          ) : null}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700 }}>{time.nome}</div>
+                          <div style={{ color: "#bbb", fontSize: 13 }}>
+                            {time.pais} • {time.plataforma}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {jogadorLogado?.isAdmin && (
+                      {jogadorLogado?.isAdmin && (
+                        <button
+                          onClick={() => removerTime(String(time.id))}
+                          style={removeButtonStyle}
+                        >
+                          Remover
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div
+  style={{
+    ...boxStyle,
+    minHeight: 520,
+    width: "100%",
+    boxSizing: "border-box",
+    overflowX: isMobile ? "auto" : "hidden",
+    overflowY: "hidden",
+    WebkitOverflowScrolling: "touch",
+    alignSelf: "start",
+  }}
+>
+              {campeonato.formato !== "pontos-corridos" && (
+                <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+                  {grupos.map((grupo) => (
+                    <button
+                      key={grupo.nome}
+                      onClick={() => {
+                        setGrupoSelecionado(grupo.nome);
+                        setRodadaSelecionada(1);
+                      }}
+                      style={smallTabStyle(grupoSelecionado === grupo.nome)}
+                    >
+                      {grupo.nome}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ marginBottom: 14 }}>
+                <select
+                  value={rodadaSelecionada}
+                  onChange={(e) => setRodadaSelecionada(Number(e.target.value))}
+                  style={selectStyle}
+                >
+                  {Array.from({ length: totalRodadasGrupoSelecionado }).map((_, index) => (
+                    <option key={index + 1} value={index + 1}>
+                      {index + 1}ª Rodada
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div
+  style={{
+    display: "grid",
+    gap: 12,
+    minWidth: isMobile ? 280 : "auto",
+    width: "100%",
+    boxSizing: "border-box",
+  }}
+>
+                {partidasDoGrupoSelecionado.length === 0 ? (
+                  <div style={{ color: "#bdbdbd" }}>Nenhuma partida gerada nesta rodada.</div>
+                ) : (
+                  partidasDoGrupoSelecionado.map((partida) => {
+                    const mandante =
+                      timesNoCampeonato.find(
+                        (t) => String(t.id) === String(partida.mandanteId)
+                      ) || null;
+                    const visitante =
+                      timesNoCampeonato.find(
+                        (t) => String(t.id) === String(partida.visitanteId)
+                      ) || null;
+
+                    return (
                       <button
-                        onClick={() => removerTime(String(time.id))}
-                        style={removeButtonStyle}
+                        key={partida.id}
+                        onClick={() => abrirPartida(partida)}
+                        style={matchCardStyle}
                       >
-                        Remover
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "42px 1fr auto 1fr 42px",
+                            gap: 10,
+                            alignItems: "center",
+                          }}
+                        >
+                          <div style={matchLogoBoxStyle}>
+                            {mandante?.imagem ? (
+                              <img
+                                src={mandante.imagem}
+                                alt={mandante.nome}
+                                style={matchLogoImgStyle}
+                              />
+                            ) : null}
+                          </div>
+
+                          <div style={{ textAlign: "left", fontWeight: 700 }}>
+                            {mandante?.nome || "Time"}
+                          </div>
+                          <div style={matchScoreStyle}>
+                            {partida.status === "finalizado"
+                              ? `${partida.golsMandante} x ${partida.golsVisitante}`
+                              : "0 x 0"}
+                          </div>
+                          <div style={{ textAlign: "right", fontWeight: 700 }}>
+                            {visitante?.nome || "Time"}
+                          </div>
+
+                          <div style={matchLogoBoxStyle}>
+                            {visitante?.imagem ? (
+                              <img
+                                src={visitante.imagem}
+                                alt={visitante.nome}
+                                style={matchLogoImgStyle}
+                              />
+                            ) : null}
+                          </div>
+                        </div>
                       </button>
-                    )}
-                  </div>
-                ))}
+                    );
+                  })
+                )}
               </div>
             </div>
           </section>
@@ -2043,13 +2071,15 @@ export default function CampeonatoDetalhePage() {
 
         {tabAtiva === "mata-mata" && visibleTabs.includes("mata-mata") && (
           <section
-            style={{
-              ...sectionStyle,
-              width: "100%",
-              boxSizing: "border-box",
-              overflowX: "hidden",
-            }}
-          >
+  style={{
+    ...sectionStyle,
+    width: "100%",
+    boxSizing: "border-box",
+    overflowX: isMobile ? "auto" : "hidden",
+    overflowY: "hidden",
+    WebkitOverflowScrolling: "touch",
+  }}
+>
             <h2 style={{ marginTop: 0 }}>Mata-mata</h2>
 
             {fasesMataMata.length > 0 && (
@@ -2066,7 +2096,16 @@ export default function CampeonatoDetalhePage() {
               </div>
             )}
 
-            <div style={{ display: "grid", gap: 14 }}>
+            <div
+  style={{
+    display: "grid",
+    gap: 14,
+    minWidth: isMobile ? 280 : "auto",
+    width: "100%",
+    boxSizing: "border-box",
+    maxWidth: isMobile ? "none" : "100%",
+  }}
+>
               {partidasMataMata.length === 0 ? (
                 <div style={{ color: "#cfcfcf" }}>
                   {campeonato.formato === "pontos-corridos-eliminatorias"
@@ -2222,13 +2261,13 @@ export default function CampeonatoDetalhePage() {
               <h3 style={{ marginTop: 0, marginBottom: 16 }}>Escalação do campeonato</h3>
 
               <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                  gap: 18,
-                  alignItems: "start",
-                  width: "100%",
-                }}
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: 18,
+    alignItems: "start",
+    width: "100%",
+  }}
               >
                 <div>
                   <div
@@ -2634,9 +2673,6 @@ const sectionStyle: React.CSSProperties = {
   borderRadius: 22,
   padding: 22,
   marginBottom: 24,
-  width: "100%",
-  boxSizing: "border-box",
-  overflowX: "hidden",
 };
 
 const boxStyle: React.CSSProperties = {
@@ -2644,8 +2680,6 @@ const boxStyle: React.CSSProperties = {
   border: "1px solid #1b1b1b",
   borderRadius: 18,
   padding: 18,
-  width: "100%",
-  boxSizing: "border-box",
 };
 
 const posterBoxStyle: React.CSSProperties = {
@@ -2730,7 +2764,6 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 12,
   padding: "12px 14px",
   outline: "none",
-  boxSizing: "border-box",
 };
 
 const selectStyle: React.CSSProperties = {
@@ -2751,7 +2784,6 @@ const tableWrapStyle: React.CSSProperties = {
   border: "1px solid #1c1c1c",
   boxSizing: "border-box",
   background: "#070707",
-  WebkitOverflowScrolling: "touch",
 };
 
 const thStyle: React.CSSProperties = {
@@ -2791,7 +2823,6 @@ const matchCardStyle: React.CSSProperties = {
   padding: 16,
   background: "#070707",
   cursor: "pointer",
-  boxSizing: "border-box",
 };
 
 const matchLogoBoxStyle: React.CSSProperties = {
@@ -2837,14 +2868,10 @@ const inviteRowStyle: React.CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  gap: 12,
-  flexWrap: "wrap",
   border: "1px solid #1c1c1c",
   borderRadius: 18,
   padding: 14,
   background: "#070707",
-  width: "100%",
-  boxSizing: "border-box",
 };
 
 const inviteLogoStyle: React.CSSProperties = {
