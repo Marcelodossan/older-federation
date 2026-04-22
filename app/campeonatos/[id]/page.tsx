@@ -1007,7 +1007,8 @@ function avancarMataMata(campeonato: Campeonato, times: Equipe[]): Campeonato {
     const jaExisteProxima = partidas.some(
       (p) => p.fase === "mata-mata" && p.faseNome === proximaFase
     );
-    if (jaExisteProxima) return campeonato;
+
+    if (jaExisteProxima) continue;
 
     const vencedores = partidasDaFase
       .map((p) => {
