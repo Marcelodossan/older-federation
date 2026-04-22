@@ -1835,13 +1835,17 @@ export default function CampeonatoDetalhePage() {
 
         {tabAtiva === "grupos" && visibleTabs.includes("grupos") && (
           <section
-            style={{
-              ...sectionStyle,
-              display: "grid",
-              gridTemplateColumns: "1.4fr 0.8fr",
-              gap: 18,
-            }}
-          >
+  style={{
+    ...sectionStyle,
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+    gap: 18,
+    alignItems: "start",
+    width: "100%",
+    boxSizing: "border-box",
+    overflowX: "hidden",
+  }}
+>
             <div style={{ display: "grid", gap: 18 }}>
               {grupos.map((grupo) => (
                 <div key={grupo.nome} style={boxStyle}>
@@ -1933,7 +1937,17 @@ export default function CampeonatoDetalhePage() {
               </div>
             </div>
 
-            <div style={{ ...boxStyle, minHeight: 520 }}>
+            <div
+  style={{
+    ...boxStyle,
+    minHeight: 520,
+    width: "100%",
+    boxSizing: "border-box",
+    overflowX: "auto",
+    overflowY: "hidden",
+    WebkitOverflowScrolling: "touch",
+  }}
+>
               {campeonato.formato !== "pontos-corridos" && (
                 <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
                   {grupos.map((grupo) => (
@@ -1965,7 +1979,15 @@ export default function CampeonatoDetalhePage() {
                 </select>
               </div>
 
-              <div style={{ display: "grid", gap: 12 }}>
+              <div
+  style={{
+    display: "grid",
+    gap: 12,
+    minWidth: 280,
+    width: "100%",
+    boxSizing: "border-box",
+  }}
+>
                 {partidasDoGrupoSelecionado.length === 0 ? (
                   <div style={{ color: "#bdbdbd" }}>Nenhuma partida gerada nesta rodada.</div>
                 ) : (
@@ -2035,7 +2057,16 @@ export default function CampeonatoDetalhePage() {
         )}
 
         {tabAtiva === "mata-mata" && visibleTabs.includes("mata-mata") && (
-          <section style={sectionStyle}>
+          <section
+  style={{
+    ...sectionStyle,
+    width: "100%",
+    boxSizing: "border-box",
+    overflowX: "auto",
+    overflowY: "hidden",
+    WebkitOverflowScrolling: "touch",
+  }}
+>
             <h2 style={{ marginTop: 0 }}>Mata-mata</h2>
 
             {fasesMataMata.length > 0 && (
@@ -2052,7 +2083,15 @@ export default function CampeonatoDetalhePage() {
               </div>
             )}
 
-            <div style={{ display: "grid", gap: 14 }}>
+            <div
+  style={{
+    display: "grid",
+    gap: 14,
+    minWidth: 280,
+    width: "100%",
+    boxSizing: "border-box",
+  }}
+>
               {partidasMataMata.length === 0 ? (
                 <div style={{ color: "#cfcfcf" }}>
                   {campeonato.formato === "pontos-corridos-eliminatorias"

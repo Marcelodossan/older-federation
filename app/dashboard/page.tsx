@@ -394,14 +394,17 @@ export default function DashboardPage() {
           </div>
 
           <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "18px",
-              marginTop: "2px",
-              flexWrap: "wrap",
-            }}
-          >
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: "18px",
+    marginTop: "2px",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    width: "100%",
+    maxWidth: "320px",
+  }}
+>
             <div
               ref={menuRef}
               style={{
@@ -412,18 +415,22 @@ export default function DashboardPage() {
               }}
             >
               <button
-                onClick={() => setMenuAberto((prev) => !prev)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "#fff",
-                  fontSize: "14px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                }}
-              >
+  onClick={() => setMenuAberto((prev) => !prev)}
+  style={{
+    background: "transparent",
+    border: "none",
+    color: "#fff",
+    fontSize: "14px",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: 0,
+    maxWidth: "100%",
+    flexWrap: "wrap",
+    textAlign: "left",
+  }}
+>
                 <span>Minha conta</span>
 
                 <div
@@ -457,20 +464,21 @@ export default function DashboardPage() {
 
               {menuAberto && (
                 <div
-                  style={{
-                    position: "absolute",
-                    top: "40px",
-                    right: 0,
-                    background: "#111",
-                    border: "1px solid #2a2a2a",
-                    borderRadius: "12px",
-                    minWidth: "220px",
-                    maxWidth: "90vw",
-                    overflow: "hidden",
-                    zIndex: 20,
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
-                  }}
-                >
+  style={{
+    position: "absolute",
+    top: "44px",
+    right: 0,
+    background: "#111",
+    border: "1px solid #2a2a2a",
+    borderRadius: "12px",
+    minWidth: "220px",
+    width: "260px",
+    maxWidth: "92vw",
+    overflow: "hidden",
+    zIndex: 20,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+  }}
+>
                   {jogador ? (
                     <>
                       <div
@@ -507,17 +515,19 @@ export default function DashboardPage() {
                     <button
                       onClick={handleEditarClube}
                       style={{
-                        display: "block",
-                        width: "100%",
-                        padding: "12px 14px",
-                        color: "white",
-                        background: "transparent",
-                        border: "none",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        fontSize: "16px",
-                        fontWeight: 700,
-                      }}
+  display: "block",
+  width: "100%",
+  padding: "12px 14px",
+  color: "white",
+  background: "transparent",
+  border: "none",
+  textAlign: "left",
+  cursor: "pointer",
+  fontSize: "16px",
+  fontWeight: 700,
+  boxSizing: "border-box",
+  whiteSpace: "normal",
+}}
                     >
                       Editar clube
                     </button>
