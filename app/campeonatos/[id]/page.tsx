@@ -1102,6 +1102,7 @@ export default function CampeonatoDetalhePage() {
   const [statsVisitanteEdicao, setStatsVisitanteEdicao] = useState<
     EstatisticaJogador[]
   >([]);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     async function carregarDados() {
@@ -1325,6 +1326,17 @@ export default function CampeonatoDetalhePage() {
       defesas: item.defesas,
     }));
   }, [campeonato, rankingCategoria, timesNoCampeonato]);
+
+  useEffect(() => {
+  function handleResize() {
+    setIsMobile(window.innerWidth <= 900);
+  }
+
+  handleResize();
+  window.addEventListener("resize", handleResize);
+
+  return () => window.removeEventListener("resize", handleResize);
+}, []);
 
   const escalacaoDoCampeonato = useMemo(() => {
     if (!campeonato) return [];
@@ -1838,7 +1850,7 @@ export default function CampeonatoDetalhePage() {
   style={{
     ...sectionStyle,
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+    gridTemplateColumns: isMobile ? "1fr" : "1.45fr 0.95fr",
     gap: 18,
     alignItems: "start",
     width: "100%",
@@ -1943,9 +1955,10 @@ export default function CampeonatoDetalhePage() {
     minHeight: 520,
     width: "100%",
     boxSizing: "border-box",
-    overflowX: "auto",
+    overflowX: isMobile ? "auto" : "hidden",
     overflowY: "hidden",
     WebkitOverflowScrolling: "touch",
+    alignSelf: "start",
   }}
 >
               {campeonato.formato !== "pontos-corridos" && (
@@ -1983,7 +1996,7 @@ export default function CampeonatoDetalhePage() {
   style={{
     display: "grid",
     gap: 12,
-    minWidth: 280,
+    minWidth: isMobile ? 280 : "auto",
     width: "100%",
     boxSizing: "border-box",
   }}
@@ -2062,7 +2075,7 @@ export default function CampeonatoDetalhePage() {
     ...sectionStyle,
     width: "100%",
     boxSizing: "border-box",
-    overflowX: "auto",
+    overflowX: isMobile ? "auto" : "hidden",
     overflowY: "hidden",
     WebkitOverflowScrolling: "touch",
   }}
@@ -2087,9 +2100,10 @@ export default function CampeonatoDetalhePage() {
   style={{
     display: "grid",
     gap: 14,
-    minWidth: 280,
+    minWidth: isMobile ? 280 : "auto",
     width: "100%",
     boxSizing: "border-box",
+    maxWidth: isMobile ? "none" : "100%",
   }}
 >
               {partidasMataMata.length === 0 ? (
@@ -2765,9 +2779,11 @@ const selectStyle: React.CSSProperties = {
 const tableWrapStyle: React.CSSProperties = {
   width: "100%",
   overflowX: "auto",
+  overflowY: "hidden",
   borderRadius: 16,
   border: "1px solid #1c1c1c",
   boxSizing: "border-box",
+  background: "#070707",
 };
 
 const thStyle: React.CSSProperties = {
