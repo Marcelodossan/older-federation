@@ -6,46 +6,46 @@ import { createClient } from "@/lib/supabase/client";
 
 const ADMIN_EMAIL = "marcelo.dos.santos.filho03@gmail.com";
 
-export default function CriarContaPage() {
-  const [nome, setNome] = useState("");
+export default function CreateAccountPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [confirmarSenha, setConfirmarSenha] = useState("");
-  const [carregando, setCarregando] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  async function handleCriarConta() {
-    if (!nome || !email || !senha || !confirmarSenha) {
-      alert("Preencha todos os campos");
+  async function handleCreateAccount() {
+    if (!name || !email || !password || !confirmPassword) {
+      alert("Please fill in all fields.");
       return;
     }
 
-    if (senha !== confirmarSenha) {
-      alert("As senhas não coincidem");
+    if (password !== confirmPassword) {
+      alert("Passwords do not match.");
       return;
     }
 
     try {
-      setCarregando(true);
+      setLoading(true);
 
       const supabase = createClient();
 
-      const emailLimpo = email.trim().toLowerCase();
-      const nomeLimpo = nome.trim();
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanName = name.trim();
 
       const { data, error } = await supabase.auth.signUp({
-        email: emailLimpo,
-        password: senha,
+        email: cleanEmail,
+        password: password,
         options: {
           data: {
-            nome: nomeLimpo,
-            idOnline: nomeLimpo,
-            isAdmin: emailLimpo === ADMIN_EMAIL.toLowerCase(),
+            nome: cleanName,
+            idOnline: cleanName,
+            isAdmin: cleanEmail === ADMIN_EMAIL.toLowerCase(),
           },
         },
       });
 
       if (error) {
-        console.error("Erro no signUp:", error);
+        console.error("SignUp error:", error);
         alert(error.message);
         return;
       }
@@ -53,47 +53,51 @@ export default function CriarContaPage() {
       const user = data.user;
 
       if (!user) {
-        alert("Conta criada. Verifique seu email para confirmar o cadastro.");
+        alert("Account created. Please check your email to confirm.");
         window.location.href = "/login";
         return;
       }
 
-      const novoUsuario = {
+      const newUser = {
         id: user.id,
-        nome: nomeLimpo,
-        email: user.email || emailLimpo,
+        nome: cleanName,
+        email: user.email || cleanEmail,
       };
 
-      const { error: perfilError } = await supabase.from("usuarios").upsert(
+      const { error: profileError } = await supabase.from("usuarios").upsert(
         {
-          id: novoUsuario.id,
-          nome: novoUsuario.nome,
-          email: novoUsuario.email,
+          id: newUser.id,
+          nome: newUser.nome,
+          email: newUser.email,
         },
         { onConflict: "id" }
       );
 
-      if (perfilError) {
-        console.error("Erro ao salvar perfil:", perfilError);
-        alert(`Conta criada, mas houve erro ao salvar perfil no banco: ${perfilError.message}`);
+      if (profileError) {
+        console.error("Profile save error:", profileError);
+        alert(`Account created, but failed to save profile: ${profileError.message}`);
         window.location.href = "/login";
         return;
       }
 
-      localStorage.setItem("jogadorLogado", JSON.stringify({
-        id: user.id,
-        nome: nomeLimpo,
-        email: user.email || emailLimpo,
-        isAdmin: emailLimpo === ADMIN_EMAIL.toLowerCase(),
-      }));
+      localStorage.setItem(
+        "jogadorLogado",
+        JSON.stringify({
+          id: user.id,
+          nome: cleanName,
+          email: user.email || cleanEmail,
+          isAdmin: cleanEmail === ADMIN_EMAIL.toLowerCase(),
+        })
+      );
+
       localStorage.setItem("sessaoAtiva", "true");
 
       window.location.href = "/dashboard";
     } catch (err) {
-      console.error("Erro inesperado:", err);
-      alert("Erro ao criar conta");
+      console.error("Unexpected error:", err);
+      alert("Error creating account.");
     } finally {
-      setCarregando(false);
+      setLoading(false);
     }
   }
 
@@ -122,24 +126,24 @@ export default function CriarContaPage() {
         }}
       >
         <h1 style={{ fontSize: 34, marginTop: 0, marginBottom: 10 }}>
-          Criar <span style={{ color: "#ff4fd8" }}>conta</span>
+          Create <span style={{ color: "#ff4fd8" }}>account</span>
         </h1>
 
         <p style={{ color: "#aaa", marginBottom: 24 }}>
-          Cadastre seu email e senha para entrar na plataforma.
+          Register your email and password to access the platform.
         </p>
 
         <input
           type="text"
-          placeholder="Seu nome"
-          value={nome}
-          onChange={(e) => setNome(e.target.value)}
+          placeholder="Your name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           style={inputStyle}
         />
 
         <input
           type="email"
-          placeholder="Seu email"
+          placeholder="Email address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           style={{ ...inputStyle, marginTop: 14 }}
@@ -147,30 +151,30 @@ export default function CriarContaPage() {
 
         <input
           type="password"
-          placeholder="Sua senha"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           style={{ ...inputStyle, marginTop: 14 }}
         />
 
         <input
           type="password"
-          placeholder="Confirmar senha"
-          value={confirmarSenha}
-          onChange={(e) => setConfirmarSenha(e.target.value)}
+          placeholder="Confirm password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
           style={{ ...inputStyle, marginTop: 14 }}
         />
 
         <button
-          onClick={handleCriarConta}
+          onClick={handleCreateAccount}
           style={{
             ...buttonStyle,
-            opacity: carregando ? 0.7 : 1,
-            cursor: carregando ? "not-allowed" : "pointer",
+            opacity: loading ? 0.7 : 1,
+            cursor: loading ? "not-allowed" : "pointer",
           }}
-          disabled={carregando}
+          disabled={loading}
         >
-          {carregando ? "Criando..." : "Criar conta"}
+          {loading ? "Creating..." : "Create account"}
         </button>
 
         <Link
@@ -184,7 +188,7 @@ export default function CriarContaPage() {
             display: "block",
           }}
         >
-          Já tenho conta
+          I already have an account
         </Link>
       </div>
     </main>
