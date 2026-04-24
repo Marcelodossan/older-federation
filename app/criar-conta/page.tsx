@@ -45,7 +45,7 @@ export default function CreateAccountPage() {
       });
 
       if (error) {
-        console.error("SignUp error:", error);
+        console.error(error);
         alert(error.message);
         return;
       }
@@ -58,24 +58,18 @@ export default function CreateAccountPage() {
         return;
       }
 
-      const newUser = {
-        id: user.id,
-        nome: cleanName,
-        email: user.email || cleanEmail,
-      };
-
       const { error: profileError } = await supabase.from("usuarios").upsert(
         {
-          id: newUser.id,
-          nome: newUser.nome,
-          email: newUser.email,
+          id: user.id,
+          nome: cleanName,
+          email: user.email || cleanEmail,
         },
         { onConflict: "id" }
       );
 
       if (profileError) {
-        console.error("Profile save error:", profileError);
-        alert(`Account created, but failed to save profile: ${profileError.message}`);
+        console.error(profileError);
+        alert("Account created, but failed to save profile.");
         window.location.href = "/login";
         return;
       }
@@ -94,7 +88,7 @@ export default function CreateAccountPage() {
 
       window.location.href = "/dashboard";
     } catch (err) {
-      console.error("Unexpected error:", err);
+      console.error(err);
       alert("Error creating account.");
     } finally {
       setLoading(false);
@@ -102,34 +96,13 @@ export default function CreateAccountPage() {
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#050505",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "white",
-        fontFamily: "Arial, sans-serif",
-        padding: 20,
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 520,
-          background: "#0b0b0b",
-          border: "1px solid #1c1c1c",
-          borderRadius: 24,
-          padding: 36,
-          boxShadow: "0 0 40px rgba(255,79,216,0.15)",
-        }}
-      >
-        <h1 style={{ fontSize: 34, marginTop: 0, marginBottom: 10 }}>
-          Create <span style={{ color: "#ff4fd8" }}>account</span>
+    <main style={pageStyle}>
+      <div style={cardStyle}>
+        <h1 style={titleStyle}>
+          Create <span style={highlightStyle}>account</span>
         </h1>
 
-        <p style={{ color: "#aaa", marginBottom: 24 }}>
+        <p style={subtitleStyle}>
           Register your email and password to access the platform.
         </p>
 
@@ -177,17 +150,7 @@ export default function CreateAccountPage() {
           {loading ? "Creating..." : "Create account"}
         </button>
 
-        <Link
-          href="/login"
-          style={{
-            marginTop: 18,
-            color: "#ff4fd8",
-            textDecoration: "none",
-            fontWeight: 700,
-            textAlign: "center",
-            display: "block",
-          }}
-        >
+        <Link href="/login" style={linkStyle}>
           I already have an account
         </Link>
       </div>
@@ -195,12 +158,49 @@ export default function CreateAccountPage() {
   );
 }
 
+const pageStyle: React.CSSProperties = {
+  minHeight: "100vh",
+  background:
+    "radial-gradient(circle at top left, rgba(255,106,0,0.22), transparent 32%), linear-gradient(135deg, #050B2E 0%, #070812 50%, #12051f 100%)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "#ffffff",
+  fontFamily: "Arial, sans-serif",
+  padding: 20,
+};
+
+const cardStyle: React.CSSProperties = {
+  width: "100%",
+  maxWidth: 520,
+  background: "rgba(5, 11, 46, 0.92)",
+  border: "1px solid rgba(245, 197, 66, 0.35)",
+  borderRadius: 24,
+  padding: 36,
+  boxShadow: "0 0 50px rgba(245, 197, 66, 0.18)",
+};
+
+const titleStyle: React.CSSProperties = {
+  fontSize: 34,
+  marginBottom: 10,
+  fontWeight: 900,
+};
+
+const highlightStyle: React.CSSProperties = {
+  color: "#F5C542",
+};
+
+const subtitleStyle: React.CSSProperties = {
+  color: "#c7c9d9",
+  marginBottom: 24,
+};
+
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: 14,
   borderRadius: 12,
-  border: "1px solid #333",
-  background: "#000",
+  border: "1px solid rgba(255,255,255,0.14)",
+  background: "rgba(0,0,0,0.35)",
   color: "#fff",
 };
 
@@ -210,7 +210,16 @@ const buttonStyle: React.CSSProperties = {
   padding: 14,
   borderRadius: 12,
   border: "none",
-  background: "#ff4fd8",
-  color: "#fff",
+  background: "linear-gradient(135deg, #F5C542, #FF6A00)",
+  color: "#050B2E",
   fontWeight: "bold",
+};
+
+const linkStyle: React.CSSProperties = {
+  marginTop: 18,
+  color: "#F5C542",
+  textDecoration: "none",
+  fontWeight: 700,
+  textAlign: "center",
+  display: "block",
 };
