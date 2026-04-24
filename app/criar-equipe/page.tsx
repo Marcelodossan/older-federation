@@ -110,10 +110,10 @@ function gerarId() {
 }
 
 function formatarData(data?: string) {
-  if (!data) return "Sem data";
+  if (!data) return "No date";
   const d = new Date(data);
   if (Number.isNaN(d.getTime())) return data;
-  return d.toLocaleString("pt-BR");
+  return d.toLocaleString("en-US");
 }
 
 function normalizarTexto(texto?: string) {
@@ -140,7 +140,7 @@ function reduzirImagem(
 
         const ctx = canvas.getContext("2d");
         if (!ctx) {
-          reject(new Error("Erro ao processar imagem."));
+          reject(new Error("Error processing image."));
           return;
         }
 
@@ -149,11 +149,11 @@ function reduzirImagem(
         resolve(base64);
       };
 
-      img.onerror = () => reject(new Error("Imagem inválida."));
+      img.onerror = () => reject(new Error("Invalid image."));
       img.src = reader.result as string;
     };
 
-    reader.onerror = () => reject(new Error("Erro ao ler arquivo."));
+    reader.onerror = () => reject(new Error("Error reading file."));
     reader.readAsDataURL(file);
   });
 }
@@ -162,7 +162,7 @@ function normalizarEquipe(item: any): Equipe {
   return {
     id: String(item.id),
     nome: item.nome || "",
-    pais: item.pais || "Brasil",
+    pais: item.pais || "Brazil",
     plataforma: item.plataforma || "PC",
     imagem: item.imagem || "",
     instagram: item.instagram || "",
@@ -180,7 +180,7 @@ function normalizarEquipe(item: any): Equipe {
 function normalizarJogador(item: any): Jogador {
   return {
     id: String(item.id),
-    nome: item.nome || "Jogador",
+    nome: item.nome || "Player",
     idOnline: item.idOnline || "",
     posicao: item.posicao || "",
     numero: String(item.numero || ""),
@@ -205,7 +205,7 @@ function normalizarJogador(item: any): Jogador {
 function normalizarCampeonato(item: any): Campeonato {
   return {
     id: String(item.id),
-    titulo: item.titulo || item.nome || "Campeonato",
+    titulo: item.titulo || item.nome || "Tournament",
     imagem: item.imagem || "",
     numeroParticipantes: Number(
       item.numeroParticipantes || item.numeroparticipantes || 0
@@ -218,7 +218,6 @@ function normalizarCampeonato(item: any): Campeonato {
     jogos: Array.isArray(item.jogos) ? item.jogos : [],
   };
 }
-
 export default function CriarEquipePage() {
   const [jogadorLogado, setJogadorLogado] = useState<JogadorLogado | null>(null);
   const [authUserId, setAuthUserId] = useState<string>("");
@@ -232,7 +231,7 @@ export default function CriarEquipePage() {
   const [carregando, setCarregando] = useState(true);
 
   const [nome, setNome] = useState("");
-  const [pais, setPais] = useState("Brasil");
+  const [pais, setPais] = useState("Brazil");
   const [plataforma, setPlataforma] = useState("PC");
   const [imagem, setImagem] = useState("");
   const [instagram, setInstagram] = useState("");
@@ -276,12 +275,12 @@ export default function CriarEquipePage() {
 
         if (userError) {
           console.error(userError);
-          setMensagem("Erro ao validar login.");
+          setMensagem("Error validating login.");
           return;
         }
 
         if (!user) {
-          setMensagem("Faça login para gerenciar seu clube.");
+          setMensagem("Please sign in to manage your club.");
           return;
         }
 
@@ -290,7 +289,7 @@ export default function CriarEquipePage() {
 
         const usuarioLogado: JogadorLogado = {
           id: user.id,
-          nome: user.email?.split("@")[0] || "Usuário",
+          nome: user.email?.split("@")[0] || "User",
           email: user.email || "",
           isAdmin,
         };
@@ -306,7 +305,7 @@ export default function CriarEquipePage() {
 
         if (errorEquipes) {
           console.error(errorEquipes);
-          setMensagem("Erro ao carregar equipes do banco.");
+          setMensagem("Error loading teams from database.");
           setEquipes([]);
           return;
         }
@@ -332,7 +331,7 @@ export default function CriarEquipePage() {
           setModoEdicao(true);
           setEquipeId(equipeDoUsuario.id);
           setNome(equipeDoUsuario.nome || "");
-          setPais(equipeDoUsuario.pais || "Brasil");
+          setPais(equipeDoUsuario.pais || "Brazil");
           setPlataforma(equipeDoUsuario.plataforma || "PC");
           setImagem(equipeDoUsuario.imagem || "");
           setInstagram(equipeDoUsuario.instagram || "");
@@ -346,7 +345,7 @@ export default function CriarEquipePage() {
 
           if (!donoDaEquipe && !isAdmin) {
             setPodeEditar(false);
-            setMensagem("Você só pode editar o clube que foi criado por você.");
+            setMensagem("You can only edit the club created by you.");
           }
 
           const { data: listaJogadoresBanco, error: errorJogadores } =
@@ -391,7 +390,7 @@ export default function CriarEquipePage() {
         }
       } catch (error) {
         console.error(error);
-        setMensagem("Erro ao carregar dados da página.");
+        setMensagem("Error loading page data.");
       } finally {
         setCarregando(false);
       }
@@ -399,8 +398,7 @@ export default function CriarEquipePage() {
 
     carregarDados();
   }, []);
-
-  const equipeAtual = useMemo(() => {
+    const equipeAtual = useMemo(() => {
     if (!equipeId) return null;
     return equipes.find((item) => String(item.id) === String(equipeId)) || null;
   }, [equipes, equipeId]);
@@ -425,7 +423,7 @@ export default function CriarEquipePage() {
           lista.push({
             campeonatoTitulo: camp.titulo,
             data: jogo.data,
-            adversarioNome: adversario?.nome || "Adversário",
+            adversarioNome: adversario?.nome || "Opponent",
             placar:
               jogo.placarMandante !== undefined &&
               jogo.placarVisitante !== undefined
@@ -442,7 +440,7 @@ export default function CriarEquipePage() {
           lista.push({
             campeonatoTitulo: camp.titulo,
             data: jogo.data,
-            adversarioNome: adversario?.nome || "Adversário",
+            adversarioNome: adversario?.nome || "Opponent",
             placar:
               jogo.placarMandante !== undefined &&
               jogo.placarVisitante !== undefined
@@ -483,7 +481,7 @@ export default function CriarEquipePage() {
       setMensagem("");
     } catch (error) {
       console.error(error);
-      setMensagem("Não foi possível processar o escudo do clube.");
+      setMensagem("Could not process the club badge.");
     }
   }
 
@@ -497,7 +495,7 @@ export default function CriarEquipePage() {
       setMensagem("");
     } catch (error) {
       console.error(error);
-      setMensagem("Não foi possível processar a imagem do jogador.");
+      setMensagem("Could not process the player image.");
     }
   }
 
@@ -534,17 +532,17 @@ export default function CriarEquipePage() {
 
       if (authError) {
         console.error(authError);
-        setMensagem("Erro ao validar login.");
+        setMensagem("Error validating login.");
         return;
       }
 
       if (!user) {
-        setMensagem("Faça login para salvar o clube.");
+        setMensagem("Please sign in to save the club.");
         return;
       }
 
       if (!nome.trim()) {
-        setMensagem("Informe o nome do clube.");
+        setMensagem("Please enter the club name.");
         return;
       }
 
@@ -555,12 +553,12 @@ export default function CriarEquipePage() {
       );
 
       if (nomeDuplicado) {
-        setMensagem("Já existe um clube com esse nome.");
+        setMensagem("A club with this name already exists.");
         return;
       }
 
       if (!podeEditar) {
-        setMensagem("Você não pode editar este clube.");
+        setMensagem("You cannot edit this club.");
         return;
       }
 
@@ -569,7 +567,7 @@ export default function CriarEquipePage() {
       const novaEquipe: Equipe = {
         id: idFinal,
         nome: nome.trim(),
-        pais: pais.trim() || "Brasil",
+        pais: pais.trim() || "Brazil",
         plataforma: plataforma.trim() || "PC",
         imagem: imagem.trim(),
         instagram: instagram.trim(),
@@ -606,7 +604,7 @@ export default function CriarEquipePage() {
 
       if (error) {
         console.error(error);
-        setMensagem(`Erro ao salvar clube no banco: ${error.message}`);
+        setMensagem(`Error saving club to database: ${error.message}`);
         return;
       }
 
@@ -626,18 +624,17 @@ export default function CriarEquipePage() {
       setPodeEditar(true);
       setMensagem(
         existeEquipe
-          ? "Clube atualizado com sucesso."
-          : "Clube criado com sucesso."
+          ? "Club updated successfully."
+          : "Club created successfully."
       );
 
       await salvarEquipesAtualizadas(novaLista, novaEquipe);
     } catch (error) {
       console.error(error);
-      setMensagem("Erro inesperado ao salvar clube.");
+      setMensagem("Unexpected error while saving club.");
     }
   }
-
-  async function criarJogadorNoClube() {
+    async function criarJogadorNoClube() {
     const supabase = createClient();
 
     try {
@@ -650,22 +647,22 @@ export default function CriarEquipePage() {
 
       if (authError) {
         console.error(authError);
-        setMensagem("Erro ao validar login.");
+        setMensagem("Error validating login.");
         return;
       }
 
       if (!user) {
-        setMensagem("Faça login para salvar o jogador.");
+        setMensagem("Please sign in to save the player.");
         return;
       }
 
       if (!nome.trim()) {
-        setMensagem("Informe o nome do clube antes de criar jogadores.");
+        setMensagem("Please enter the club name before creating players.");
         return;
       }
 
       if (elenco.length >= LIMITE_ELENCO) {
-        setMensagem(`O clube atingiu o limite de ${LIMITE_ELENCO} jogadores.`);
+        setMensagem(`The club has reached the limit of ${LIMITE_ELENCO} players.`);
         return;
       }
 
@@ -675,7 +672,7 @@ export default function CriarEquipePage() {
         !posicaoJogador.trim() ||
         !numeroJogador.trim()
       ) {
-        setMensagem("Preencha ID online, nome, posição e número da camisa.");
+        setMensagem("Fill in online ID, name, position, and shirt number.");
         return;
       }
 
@@ -686,7 +683,7 @@ export default function CriarEquipePage() {
       );
 
       if (nomeClubeDuplicado) {
-        setMensagem("Já existe um clube com esse nome.");
+        setMensagem("A club with this name already exists.");
         return;
       }
 
@@ -695,7 +692,7 @@ export default function CriarEquipePage() {
       );
 
       if (idDuplicado) {
-        setMensagem("Já existe um jogador com esse ID online.");
+        setMensagem("A player with this online ID already exists.");
         return;
       }
 
@@ -704,7 +701,7 @@ export default function CriarEquipePage() {
       );
 
       if (numeroDuplicadoNoClube) {
-        setMensagem("Já existe um jogador com esse número da camisa no clube.");
+        setMensagem("A player with this shirt number already exists in the club.");
         return;
       }
 
@@ -713,7 +710,7 @@ export default function CriarEquipePage() {
       const equipeBase: Equipe = {
         id: idClubeFinal,
         nome: nome.trim(),
-        pais: pais.trim() || "Brasil",
+        pais: pais.trim() || "Brazil",
         plataforma: plataforma.trim() || "PC",
         imagem: imagem.trim(),
         instagram: instagram.trim(),
@@ -778,7 +775,7 @@ export default function CriarEquipePage() {
 
       if (erroJogador) {
         console.error(erroJogador);
-        setMensagem(`Erro ao salvar jogador no banco: ${erroJogador.message}`);
+        setMensagem(`Error saving player to database: ${erroJogador.message}`);
         return;
       }
 
@@ -818,7 +815,7 @@ export default function CriarEquipePage() {
       if (erroEquipe) {
         console.error(erroEquipe);
         setMensagem(
-          `Jogador salvo, mas houve erro ao atualizar o elenco: ${erroEquipe.message}`
+          `Player saved, but there was an error updating the squad: ${erroEquipe.message}`
         );
         return;
       }
@@ -847,10 +844,10 @@ export default function CriarEquipePage() {
       setNumeroJogador("");
       setImagemJogador("");
 
-      setMensagem("Jogador criado e salvo no banco com sucesso.");
+      setMensagem("Player created and saved successfully.");
     } catch (error) {
       console.error(error);
-      setMensagem("Erro inesperado ao criar jogador.");
+      setMensagem("Unexpected error while creating player.");
     }
   }
 
@@ -876,7 +873,7 @@ export default function CriarEquipePage() {
       if (erroDeleteJogador) {
         console.error(erroDeleteJogador);
         setMensagem(
-          `Erro ao remover jogador do banco: ${erroDeleteJogador.message}`
+          `Error removing player from database: ${erroDeleteJogador.message}`
         );
         return;
       }
@@ -884,7 +881,7 @@ export default function CriarEquipePage() {
       const equipeAtualizada: Equipe = {
         id: equipeId,
         nome: nome.trim(),
-        pais: pais.trim() || "Brasil",
+        pais: pais.trim() || "Brazil",
         plataforma: plataforma.trim() || "PC",
         imagem: imagem.trim(),
         instagram: instagram.trim(),
@@ -923,7 +920,7 @@ export default function CriarEquipePage() {
       if (erroEquipe) {
         console.error(erroEquipe);
         setMensagem(
-          `Jogador removido, mas erro ao atualizar elenco: ${erroEquipe.message}`
+          `Player removed, but there was an error updating the squad: ${erroEquipe.message}`
         );
         return;
       }
@@ -936,75 +933,31 @@ export default function CriarEquipePage() {
       );
 
       await salvarEquipesAtualizadas(equipesAtualizadas, equipeAtualizada);
-      setMensagem("Jogador removido do elenco.");
+      setMensagem("Player removed from squad.");
     } catch (error) {
       console.error(error);
-      setMensagem("Erro inesperado ao remover jogador.");
+      setMensagem("Unexpected error while removing player.");
     }
   }
-
-  return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#000",
-        color: "#fff",
-        fontFamily: "Arial, sans-serif",
-        padding: isMobile ? 12 : 18,
-      }}
-    >
+    return (
+    <main style={pageStyle(isMobile)}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-        <Link
-          href="/"
-          style={{
-            color: "#ff4fd8",
-            textDecoration: "none",
-            fontWeight: 700,
-            display: "inline-block",
-            marginBottom: 18,
-            fontSize: isMobile ? 15 : 16,
-          }}
-        >
-          ← Voltar para dashboard
+        <Link href="/" style={backLinkStyle(isMobile)}>
+          ← Back to Dashboard
         </Link>
 
         {mensagem && (
-          <div
-            style={{
-              marginBottom: 16,
-              padding: "12px 14px",
-              background: "rgba(255,79,216,0.08)",
-              border: "1px solid rgba(255,79,216,0.22)",
-              borderRadius: 12,
-              fontSize: isMobile ? 14 : 16,
-            }}
-          >
+          <div style={messageStyle(isMobile)}>
             {mensagem}
           </div>
         )}
 
         {carregando ? (
-          <div
-            style={{
-              background: "#050505",
-              border: "1px solid #151515",
-              borderRadius: 22,
-              padding: 24,
-              textAlign: "center",
-              color: "#bdbdbd",
-            }}
-          >
-            Carregando dados do clube...
+          <div style={loadingCardStyle}>
+            Loading club data...
           </div>
         ) : (
-          <section
-            style={{
-              background: "#050505",
-              border: "1px solid #151515",
-              borderRadius: 22,
-              padding: isMobile ? 12 : 18,
-            }}
-          >
+          <section style={mainSectionStyle(isMobile)}>
             <div
               style={{
                 display: "grid",
@@ -1014,28 +967,8 @@ export default function CriarEquipePage() {
               }}
             >
               <div>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 16,
-                    alignItems: "center",
-                    marginBottom: 18,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: isMobile ? 82 : 96,
-                      height: isMobile ? 82 : 96,
-                      borderRadius: 14,
-                      background: "#111",
-                      overflow: "hidden",
-                      flexShrink: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      border: "1px solid #1d1d1d",
-                    }}
-                  >
+                <div style={clubHeaderStyle}>
+                  <div style={badgeBoxStyle(isMobile)}>
                     {imagem ? (
                       <img
                         src={imagem}
@@ -1047,38 +980,22 @@ export default function CriarEquipePage() {
                         }}
                       />
                     ) : (
-                      <span style={{ color: "#777" }}>Escudo</span>
+                      <span style={{ color: "#8f93ad" }}>Badge</span>
                     )}
                   </div>
 
                   <div>
-                    <div
-                      style={{
-                        fontSize: isMobile ? 22 : 28,
-                        fontWeight: 800,
-                        lineHeight: 1.1,
-                      }}
-                    >
-                      {nome || "Nome do clube"}
+                    <div style={clubNameStyle(isMobile)}>
+                      {nome || "Club Name"}
                     </div>
-                    <div
-                      style={{
-                        color: "#d0d0d0",
-                        fontSize: isMobile ? 14 : 16,
-                      }}
-                    >
-                      {pais || "Brasil"} • {plataforma || "PC"}
+
+                    <div style={clubMetaStyle(isMobile)}>
+                      {pais || "Brazil"} • {plataforma || "PC"}
                     </div>
+
                     {modoEdicao && (
-                      <div
-                        style={{
-                          color: "#8d8d8d",
-                          fontSize: 13,
-                          marginTop: 6,
-                          wordBreak: "break-all",
-                        }}
-                      >
-                        ID do clube: {equipeId}
+                      <div style={clubIdStyle}>
+                        Club ID: {equipeId}
                       </div>
                     )}
                   </div>
@@ -1086,27 +1003,27 @@ export default function CriarEquipePage() {
 
                 <div style={{ display: "grid", gap: 12, marginBottom: 18 }}>
                   <div>
-                    <label style={labelStyle}>Nome do clube</label>
+                    <label style={labelStyle}>Club Name</label>
                     <input
                       value={nome}
                       onChange={(e) => setNome(e.target.value)}
                       style={inputStyle}
-                      placeholder="Digite o nome do clube"
+                      placeholder="Enter club name"
                     />
                   </div>
 
                   <div>
-                    <label style={labelStyle}>País</label>
+                    <label style={labelStyle}>Country</label>
                     <input
                       value={pais}
                       onChange={(e) => setPais(e.target.value)}
                       style={inputStyle}
-                      placeholder="Digite o país"
+                      placeholder="Enter country"
                     />
                   </div>
 
                   <div>
-                    <label style={labelStyle}>Plataforma</label>
+                    <label style={labelStyle}>Platform</label>
                     <select
                       value={plataforma}
                       onChange={(e) => setPlataforma(e.target.value)}
@@ -1124,12 +1041,12 @@ export default function CriarEquipePage() {
                       value={instagram}
                       onChange={(e) => setInstagram(e.target.value)}
                       style={inputStyle}
-                      placeholder="@seuclube"
+                      placeholder="@yourclub"
                     />
                   </div>
 
                   <div>
-                    <label style={labelStyle}>Escudo do clube</label>
+                    <label style={labelStyle}>Club Badge</label>
                     <input
                       type="file"
                       accept="image/*"
@@ -1143,35 +1060,30 @@ export default function CriarEquipePage() {
                     style={primaryButtonStyle}
                     disabled={!podeEditar}
                   >
-                    {modoEdicao ? "Salvar alterações" : "Criar clube"}
+                    {modoEdicao ? "Save Changes" : "Create Club"}
                   </button>
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    marginBottom: 18,
-                  }}
-                >
+                <div style={tabsWrapperStyle}>
                   <button
                     onClick={() => setAbaPrincipal("informacoes")}
                     style={tabButtonStyle(abaPrincipal === "informacoes")}
                   >
-                    Informações
+                    Information
                   </button>
+
                   <button
                     onClick={() => setAbaPrincipal("calendario")}
                     style={tabButtonStyle(abaPrincipal === "calendario")}
                   >
-                    Calendário
+                    Calendar
                   </button>
+
                   <button
                     onClick={() => setAbaPrincipal("titulos")}
                     style={tabButtonStyle(abaPrincipal === "titulos")}
                   >
-                    Títulos
+                    Titles
                   </button>
                 </div>
               </div>
@@ -1179,42 +1091,33 @@ export default function CriarEquipePage() {
               <div>
                 {abaPrincipal === "informacoes" && (
                   <>
-                    <div
-                      style={{
-                        background: "#070707",
-                        border: "1px solid #181818",
-                        borderRadius: 18,
-                        padding: isMobile ? 14 : 18,
-                        marginBottom: 18,
-                      }}
-                    >
-                      <h2
-                        style={{
-                          margin: 0,
-                          fontSize: isMobile ? 22 : 34,
-                          marginBottom: 14,
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        Elenco {elenco.length}/{LIMITE_ELENCO} Jogadores
+                    <div style={panelStyle(isMobile)}>
+                      <h2 style={panelTitleStyle(isMobile)}>
+                        Squad {elenco.length}/{LIMITE_ELENCO} Players
                       </h2>
 
                       <div style={{ overflowX: "auto" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <table
+                          style={{
+                            width: "100%",
+                            borderCollapse: "collapse",
+                          }}
+                        >
                           <thead>
                             <tr>
                               <th style={thStyle}>Pos</th>
-                              <th style={thStyle}>Nome</th>
-                              <th style={thStyle}>Nº</th>
+                              <th style={thStyle}>Name</th>
+                              <th style={thStyle}>No.</th>
                               <th style={thStyle}>Overall</th>
-                              <th style={thStyle}>Ações</th>
+                              <th style={thStyle}>Actions</th>
                             </tr>
                           </thead>
+
                           <tbody>
                             {elenco.length === 0 ? (
                               <tr>
                                 <td style={tdStyle}>-</td>
-                                <td style={tdStyle}>Nenhum jogador</td>
+                                <td style={tdStyle}>No player</td>
                                 <td style={tdStyle}>-</td>
                                 <td style={tdStyle}>-</td>
                                 <td style={tdStyle}>-</td>
@@ -1234,7 +1137,7 @@ export default function CriarEquipePage() {
                                       style={secondaryButtonStyle}
                                       disabled={!podeEditar}
                                     >
-                                      Remover
+                                      Remove
                                     </button>
                                   </td>
                                 </tr>
@@ -1245,16 +1148,8 @@ export default function CriarEquipePage() {
                       </div>
                     </div>
 
-                    <div
-                      style={{
-                        background: "#070707",
-                        border: "1px solid #181818",
-                        borderRadius: 18,
-                        padding: isMobile ? 14 : 18,
-                        marginBottom: 18,
-                      }}
-                    >
-                      <h2 style={{ marginTop: 0 }}>Criar jogador no clube</h2>
+                    <div style={panelStyle(isMobile)}>
+                      <h2 style={{ marginTop: 0 }}>Create Player in Club</h2>
 
                       <div
                         style={{
@@ -1266,58 +1161,58 @@ export default function CriarEquipePage() {
                         }}
                       >
                         <div>
-                          <label style={labelStyle}>ID online</label>
+                          <label style={labelStyle}>Online ID</label>
                           <input
                             value={idOnlineJogador}
                             onChange={(e) => setIdOnlineJogador(e.target.value)}
                             style={inputStyle}
-                            placeholder="ID online do jogador"
+                            placeholder="Player online ID"
                           />
                         </div>
 
                         <div>
-                          <label style={labelStyle}>Nome</label>
+                          <label style={labelStyle}>Name</label>
                           <input
                             value={nomeJogador}
                             onChange={(e) => setNomeJogador(e.target.value)}
                             style={inputStyle}
-                            placeholder="Nome do jogador"
+                            placeholder="Player name"
                           />
                         </div>
 
                         <div>
-                          <label style={labelStyle}>Posição</label>
+                          <label style={labelStyle}>Position</label>
                           <select
                             value={posicaoJogador}
                             onChange={(e) => setPosicaoJogador(e.target.value)}
                             style={inputStyle}
                           >
-                            <option value="">Selecione</option>
-                            <option value="GOL">GOL</option>
-                            <option value="ZAG">ZAG</option>
-                            <option value="LD">LD</option>
-                            <option value="LE">LE</option>
-                            <option value="VOL">VOL</option>
-                            <option value="MC">MC</option>
-                            <option value="MEI">MEI</option>
-                            <option value="ATA">ATA</option>
-                            <option value="PE">PE</option>
-                            <option value="PD">PD</option>
+                            <option value="">Select</option>
+                            <option value="GK">GK</option>
+                            <option value="CB">CB</option>
+                            <option value="RB">RB</option>
+                            <option value="LB">LB</option>
+                            <option value="CDM">CDM</option>
+                            <option value="CM">CM</option>
+                            <option value="CAM">CAM</option>
+                            <option value="ST">ST</option>
+                            <option value="LW">LW</option>
+                            <option value="RW">RW</option>
                           </select>
                         </div>
 
                         <div>
-                          <label style={labelStyle}>Nº da camisa</label>
+                          <label style={labelStyle}>Shirt Number</label>
                           <input
                             value={numeroJogador}
                             onChange={(e) => setNumeroJogador(e.target.value)}
                             style={inputStyle}
-                            placeholder="Número"
+                            placeholder="Number"
                           />
                         </div>
 
                         <div style={{ gridColumn: "1 / -1" }}>
-                          <label style={labelStyle}>Imagem do jogador</label>
+                          <label style={labelStyle}>Player Image</label>
                           <input
                             type="file"
                             accept="image/*"
@@ -1333,27 +1228,13 @@ export default function CriarEquipePage() {
                           style={primaryButtonStyle}
                           disabled={!podeEditar}
                         >
-                          Criar jogador
+                          Create Player
                         </button>
                       </div>
                     </div>
-
-                    <div
-                      style={{
-                        background: "#070707",
-                        border: "1px solid #181818",
-                        borderRadius: 18,
-                        padding: isMobile ? 14 : 18,
-                      }}
-                    >
-                      <div
-                        style={{
-                          marginBottom: 12,
-                          fontWeight: 700,
-                          color: "#d6d6d6",
-                        }}
-                      >
-                        Jogadores do clube
+                                        <div style={panelStyle(isMobile)}>
+                      <div style={playersSectionTitleStyle}>
+                        Club Players
                       </div>
 
                       <div
@@ -1367,29 +1248,12 @@ export default function CriarEquipePage() {
                       >
                         {jogadoresDoClube.length === 0 ? (
                           <div style={emptyCardStyle}>
-                            Nenhum jogador cadastrado.
+                            No players registered yet.
                           </div>
                         ) : (
                           jogadoresDoClube.map((item) => (
-                            <div
-                              key={item.id}
-                              style={{
-                                borderRadius: 12,
-                                border: "1px solid #191919",
-                                background: "#050505",
-                                overflow: "hidden",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: "100%",
-                                  height: isMobile ? 210 : 160,
-                                  background: "#101010",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                              >
+                            <div key={item.id} style={playerCardStyle}>
+                              <div style={playerImageBoxStyle(isMobile)}>
                                 {item.imagem ? (
                                   <img
                                     src={item.imagem}
@@ -1401,39 +1265,24 @@ export default function CriarEquipePage() {
                                     }}
                                   />
                                 ) : (
-                                  <span style={{ color: "#777" }}>
-                                    Sem imagem
+                                  <span style={{ color: "#8f93ad" }}>
+                                    No image
                                   </span>
                                 )}
                               </div>
 
                               <div style={{ padding: 10, textAlign: "center" }}>
-                                <div style={{ fontWeight: 700 }}>{item.nome}</div>
-                                <div
-                                  style={{
-                                    color: "#aaa",
-                                    fontSize: 13,
-                                    marginTop: 4,
-                                  }}
-                                >
+                                <div style={{ fontWeight: 800 }}>{item.nome}</div>
+
+                                <div style={mutedSmallTextStyle}>
                                   {item.idOnline}
                                 </div>
-                                <div
-                                  style={{
-                                    color: "#aaa",
-                                    fontSize: 13,
-                                    marginTop: 4,
-                                  }}
-                                >
+
+                                <div style={mutedSmallTextStyle}>
                                   {item.posicao} • #{item.numero}
                                 </div>
-                                <div
-                                  style={{
-                                    color: "#fff",
-                                    fontSize: 13,
-                                    marginTop: 4,
-                                  }}
-                                >
+
+                                <div style={overallTextStyle}>
                                   Overall {item.overall ?? 55}
                                 </div>
                               </div>
@@ -1446,18 +1295,11 @@ export default function CriarEquipePage() {
                 )}
 
                 {abaPrincipal === "calendario" && (
-                  <div
-                    style={{
-                      background: "#070707",
-                      border: "1px solid #181818",
-                      borderRadius: 18,
-                      padding: isMobile ? 14 : 18,
-                    }}
-                  >
-                    <h2 style={{ marginTop: 0 }}>Calendário do clube</h2>
+                  <div style={panelStyle(isMobile)}>
+                    <h2 style={{ marginTop: 0 }}>Club Calendar</h2>
 
                     {jogosDoClube.length === 0 ? (
-                      <div style={emptyCardStyle}>Nenhum confronto encontrado.</div>
+                      <div style={emptyCardStyle}>No matches found.</div>
                     ) : (
                       <div style={{ display: "grid", gap: 14 }}>
                         {jogosDoClube.map((jogo, index) => (
@@ -1466,19 +1308,21 @@ export default function CriarEquipePage() {
                             style={cardStyle}
                           >
                             <div>
-                              <div style={{ fontWeight: 700 }}>
+                              <div style={{ fontWeight: 800 }}>
                                 {jogo.campeonatoTitulo}
                               </div>
-                              <div style={{ color: "#bbb", fontSize: 14 }}>
+
+                              <div style={{ color: "#c7c9d9", fontSize: 14 }}>
                                 vs {jogo.adversarioNome}
                               </div>
-                              <div style={{ color: "#999", fontSize: 13 }}>
+
+                              <div style={{ color: "#8f93ad", fontSize: 13 }}>
                                 {formatarData(jogo.data)}
                               </div>
                             </div>
 
-                            <div style={{ fontWeight: 700 }}>
-                              {jogo.placar || "Sem resultado"}
+                            <div style={{ fontWeight: 800 }}>
+                              {jogo.placar || "No result"}
                             </div>
                           </div>
                         ))}
@@ -1488,25 +1332,18 @@ export default function CriarEquipePage() {
                 )}
 
                 {abaPrincipal === "titulos" && (
-                  <div
-                    style={{
-                      background: "#070707",
-                      border: "1px solid #181818",
-                      borderRadius: 18,
-                      padding: isMobile ? 14 : 18,
-                    }}
-                  >
-                    <h2 style={{ marginTop: 0 }}>Títulos</h2>
+                  <div style={panelStyle(isMobile)}>
+                    <h2 style={{ marginTop: 0 }}>Titles</h2>
 
                     {titulosDoClube.length === 0 ? (
                       <div style={emptyCardStyle}>
-                        Esse clube ainda não possui títulos.
+                        This club has no titles yet.
                       </div>
                     ) : (
                       <div style={{ display: "grid", gap: 12 }}>
                         {titulosDoClube.map((titulo) => (
                           <div key={titulo.id} style={cardStyle}>
-                            <div style={{ fontWeight: 700 }}>{titulo.titulo}</div>
+                            <div style={{ fontWeight: 800 }}>{titulo.titulo}</div>
                           </div>
                         ))}
                       </div>
@@ -1522,49 +1359,189 @@ export default function CriarEquipePage() {
   );
 }
 
+const ORANGE = "#ff6900";
+const BLACK = "#050505";
+const PANEL = "#0b0b0f";
+const LINE = "#242024";
+const MUTED = "#bdb6b1";
+
+function pageStyle(isMobile: boolean): CSSProperties {
+  return {
+    minHeight: "100vh",
+    background:
+      "radial-gradient(circle at top left, rgba(255,105,0,0.24), transparent 34%), radial-gradient(circle at top right, rgba(255,105,0,0.12), transparent 28%), #000",
+    color: "#ffffff",
+    fontFamily: "Arial, sans-serif",
+    padding: isMobile ? 12 : 24,
+    overflowX: "hidden",
+  };
+}
+
+function backLinkStyle(isMobile: boolean): CSSProperties {
+  return {
+    color: ORANGE,
+    textDecoration: "none",
+    fontWeight: 900,
+    display: "inline-block",
+    marginBottom: 18,
+    fontSize: isMobile ? 15 : 16,
+  };
+}
+
+function messageStyle(isMobile: boolean): CSSProperties {
+  return {
+    marginBottom: 16,
+    padding: "12px 14px",
+    background: "rgba(255,105,0,0.11)",
+    border: "1px solid rgba(255,105,0,0.28)",
+    borderRadius: 14,
+    fontSize: isMobile ? 14 : 16,
+    color: "#ffffff",
+  };
+}
+
+const loadingCardStyle: CSSProperties = {
+  background: "linear-gradient(180deg, rgba(18,18,22,0.98), rgba(5,5,5,0.98))",
+  border: `1px solid ${LINE}`,
+  borderRadius: 24,
+  padding: 24,
+  textAlign: "center",
+  color: MUTED,
+};
+
+function mainSectionStyle(isMobile: boolean): CSSProperties {
+  return {
+    background:
+      "linear-gradient(135deg, rgba(255,105,0,0.18), rgba(5,5,5,0.98) 36%, rgba(15,15,18,1))",
+    border: "1px solid rgba(255,105,0,0.35)",
+    borderRadius: 28,
+    padding: isMobile ? 14 : 22,
+    boxShadow: "0 24px 80px rgba(255,105,0,0.12)",
+    overflow: "hidden",
+  };
+}
+
+const clubHeaderStyle: CSSProperties = {
+  display: "flex",
+  gap: 16,
+  alignItems: "center",
+  marginBottom: 18,
+};
+
+function badgeBoxStyle(isMobile: boolean): CSSProperties {
+  return {
+    width: isMobile ? 86 : 104,
+    height: isMobile ? 86 : 104,
+    borderRadius: 20,
+    background: "linear-gradient(135deg, #1a1a1a, #050505)",
+    overflow: "hidden",
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid rgba(255,105,0,0.35)",
+    boxShadow: "0 12px 30px rgba(0,0,0,0.35)",
+  };
+}
+
+function clubNameStyle(isMobile: boolean): CSSProperties {
+  return {
+    fontSize: isMobile ? 24 : 32,
+    fontWeight: 900,
+    lineHeight: 1.05,
+    color: "#ffffff",
+  };
+}
+
+function clubMetaStyle(isMobile: boolean): CSSProperties {
+  return {
+    color: MUTED,
+    fontSize: isMobile ? 14 : 16,
+    marginTop: 4,
+  };
+}
+
+const clubIdStyle: CSSProperties = {
+  color: MUTED,
+  fontSize: 12,
+  marginTop: 7,
+  wordBreak: "break-all",
+};
+
+const tabsWrapperStyle: CSSProperties = {
+  display: "flex",
+  gap: 10,
+  flexWrap: "wrap",
+  marginBottom: 18,
+};
+
+function panelStyle(isMobile: boolean): CSSProperties {
+  return {
+    background: PANEL,
+    border: `1px solid ${LINE}`,
+    borderRadius: 22,
+    padding: isMobile ? 14 : 18,
+    marginBottom: 18,
+  };
+}
+
+function panelTitleStyle(isMobile: boolean): CSSProperties {
+  return {
+    margin: 0,
+    fontSize: isMobile ? 22 : 30,
+    marginBottom: 14,
+    lineHeight: 1.15,
+    color: "#ffffff",
+  };
+}
+
 function tabButtonStyle(active: boolean): CSSProperties {
   return {
-    background: active ? "#ff4fd8" : "#111",
-    color: "#fff",
-    border: active ? "1px solid #ff4fd8" : "1px solid #222",
-    borderRadius: 12,
-    padding: "10px 14px",
-    fontWeight: 700,
+    background: active ? ORANGE : "rgba(0,0,0,0.18)",
+    color: active ? "#080808" : "#ffffff",
+    border: `1px solid ${active ? ORANGE : "rgba(255,105,0,0.55)"}`,
+    borderRadius: 999,
+    padding: "10px 16px",
+    fontWeight: 900,
     cursor: "pointer",
   };
 }
 
 const inputStyle: CSSProperties = {
   width: "100%",
-  background: "#111",
-  color: "#fff",
-  border: "1px solid #2a2a2a",
-  borderRadius: 12,
+  background: "#09090b",
+  color: "#ffffff",
+  border: "1px solid #2d2826",
+  borderRadius: 13,
   padding: "12px 14px",
   outline: "none",
+  boxSizing: "border-box",
 };
 
 const labelStyle: CSSProperties = {
   display: "block",
   marginBottom: 8,
-  color: "#d8d8d8",
-  fontWeight: 700,
+  color: MUTED,
+  fontWeight: 800,
   fontSize: 14,
 };
 
 const thStyle: CSSProperties = {
   textAlign: "left",
-  padding: "12px 10px",
-  borderBottom: "1px solid #1f1f1f",
-  color: "#bdbdbd",
+  padding: "14px 12px",
+  borderBottom: "1px solid #272020",
+  color: "#f2e8e0",
   fontSize: 13,
+  whiteSpace: "nowrap",
+  background: "linear-gradient(90deg, rgba(255,105,0,0.22), rgba(12,12,12,1))",
 };
 
 const tdStyle: CSSProperties = {
-  padding: "12px 10px",
-  borderBottom: "1px solid #141414",
-  color: "#fff",
+  padding: "14px 12px",
+  borderBottom: "1px solid #171316",
+  color: "#ffffff",
   fontSize: 14,
+  whiteSpace: "nowrap",
 };
 
 const cardStyle: CSSProperties = {
@@ -1573,37 +1550,76 @@ const cardStyle: CSSProperties = {
   gap: 12,
   alignItems: "center",
   flexWrap: "wrap",
-  background: "#090909",
-  border: "1px solid #1f1f1f",
-  borderRadius: 14,
-  padding: "14px",
+  background: "#08080b",
+  border: `1px solid ${LINE}`,
+  borderRadius: 18,
+  padding: 14,
 };
 
 const emptyCardStyle: CSSProperties = {
   padding: 20,
-  borderRadius: 14,
-  border: "1px solid #1d1d1d",
-  background: "#050505",
+  borderRadius: 16,
+  border: "1px dashed rgba(255,105,0,0.25)",
+  background: "rgba(255,255,255,0.03)",
   textAlign: "center",
-  color: "#888",
+  color: MUTED,
 };
 
 const primaryButtonStyle: CSSProperties = {
-  background: "#ff4fd8",
+  background: ORANGE,
   border: "none",
-  color: "#fff",
-  padding: "10px 14px",
-  borderRadius: 10,
+  color: "#080808",
+  padding: "11px 15px",
+  borderRadius: 13,
   cursor: "pointer",
-  fontWeight: 700,
+  fontWeight: 900,
 };
 
 const secondaryButtonStyle: CSSProperties = {
   background: "transparent",
-  border: "1px solid #ff4fd8",
-  color: "#ff4fd8",
+  border: `1px solid ${ORANGE}`,
+  color: ORANGE,
   padding: "8px 12px",
-  borderRadius: 10,
+  borderRadius: 12,
   cursor: "pointer",
-  fontWeight: 700,
+  fontWeight: 800,
+};
+
+const playersSectionTitleStyle: CSSProperties = {
+  marginBottom: 12,
+  fontWeight: 900,
+  color: "#ffffff",
+  fontSize: 20,
+};
+
+const playerCardStyle: CSSProperties = {
+  borderRadius: 16,
+  border: `1px solid ${LINE}`,
+  background: "#08080b",
+  overflow: "hidden",
+};
+
+function playerImageBoxStyle(isMobile: boolean): CSSProperties {
+  return {
+    width: "100%",
+    height: isMobile ? 210 : 170,
+    background: "#111",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderBottom: "1px solid rgba(255,105,0,0.18)",
+  };
+}
+
+const mutedSmallTextStyle: CSSProperties = {
+  color: MUTED,
+  fontSize: 13,
+  marginTop: 4,
+};
+
+const overallTextStyle: CSSProperties = {
+  color: ORANGE,
+  fontSize: 13,
+  marginTop: 6,
+  fontWeight: 900,
 };

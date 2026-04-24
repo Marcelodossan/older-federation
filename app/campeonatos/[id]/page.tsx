@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type JogadorElenco = {
@@ -165,7 +165,7 @@ function normalizarEquipe(item: any): Equipe {
   return {
     id: String(item.id),
     nome: item.nome || "",
-    pais: item.pais || "Brasil",
+    pais: item.pais || "Brazil",
     plataforma: item.plataforma || "PC",
     imagem: item.imagem || "",
     instagram: item.instagram || "",
@@ -175,6 +175,8 @@ function normalizarEquipe(item: any): Equipe {
     titulos: Number(item.titulos || 0),
     criadoPor: item.criadoPor || "",
     user_id: item.user_id || "",
+    emailDono: item.emailDono || "",
+    criadoPorEmail: item.criadoPorEmail || "",
     elenco: Array.isArray(item.elenco) ? item.elenco : [],
   };
 }
@@ -182,7 +184,7 @@ function normalizarEquipe(item: any): Equipe {
 function normalizarCampeonato(item: any): Campeonato {
   return {
     id: String(item.id),
-    titulo: item.titulo || "Campeonato",
+    titulo: item.titulo || "Tournament",
     imagem: item.imagem || "",
     numeroParticipantes: Number(item.numeroparticipantes || 0),
     formato: item.formato || "eliminatorias",
@@ -206,14 +208,33 @@ function normalizarCampeonato(item: any): Campeonato {
 function getFormatoLabel(formato: CampeonatoFormato) {
   switch (formato) {
     case "eliminatorias":
-      return "Eliminatórias";
+      return "Knockout";
     case "pontos-corridos":
-      return "Pontos corridos";
+      return "League Format";
     case "pontos-corridos-eliminatorias":
-      return "Pontos corridos + eliminatórias";
+      return "League + Knockout";
     default:
       return formato;
   }
+}
+
+function getFaseLabel(fase?: string) {
+  if (fase === "Oitavas de final") return "Round of 16";
+  if (fase === "Quartas de final") return "Quarter-finals";
+  if (fase === "Semifinal") return "Semi-final";
+  if (fase === "Final") return "Final";
+  return fase || "";
+}
+
+function getRankingCategoriaLabel(categoria: RankingCategoria) {
+  if (categoria === "goleiro") return "Goalkeepers";
+  if (categoria === "defensores") return "Defenders";
+  if (categoria === "meias-defensivos") return "Defensive Midfielders";
+  if (categoria === "meio-campistas") return "Midfielders";
+  if (categoria === "atacantes") return "Forwards";
+  if (categoria === "artilheiro") return "Top Scorers";
+  if (categoria === "lider-assistencias") return "Assist Leaders";
+  return categoria;
 }
 
 function getVisibleTabs(formato: CampeonatoFormato): TabKey[] {
@@ -250,20 +271,14 @@ function getPosicaoExibicao(posicao?: string) {
   const p = limparPosicao(posicao);
 
   if (["GK", "GOLEIRO", "GOL", "GO"].includes(p)) return "GK";
-  if (["ZAG", "ZAGUEIRO"].includes(p)) return "ZAG";
-  if (
-    ["LAT", "LD", "LE", "LATERAL", "LATERAL DIREITO", "LATERAL ESQUERDO"].includes(
-      p
-    )
-  )
-    return "LAT";
-  if (["VOL", "VOLANTE", "MEIA DEFENSIVO", "MEIA-DEFENSIVO"].includes(p))
-    return "VOL";
-  if (["MC", "MEIO CAMPISTA", "MEIO-CAMPISTA"].includes(p)) return "MC";
-  if (["MEI", "MEIA"].includes(p)) return "MEI";
-  if (["PE", "PONTA ESQUERDA"].includes(p)) return "PE";
-  if (["PD", "PONTA DIREITA"].includes(p)) return "PD";
-  if (["ATA", "ATACANTE", "CENTROAVANTE", "ST", "CF"].includes(p)) return "ATA";
+  if (["ZAG", "ZAGUEIRO", "CB"].includes(p)) return "CB";
+  if (["LAT", "LD", "LE", "LATERAL", "LATERAL DIREITO", "LATERAL ESQUERDO", "RB", "LB"].includes(p)) return "FB";
+  if (["VOL", "VOLANTE", "MEIA DEFENSIVO", "MEIA-DEFENSIVO", "CDM"].includes(p)) return "CDM";
+  if (["MC", "MEIO CAMPISTA", "MEIO-CAMPISTA", "CM"].includes(p)) return "CM";
+  if (["MEI", "MEIA", "CAM"].includes(p)) return "CAM";
+  if (["PE", "PONTA ESQUERDA", "LW"].includes(p)) return "LW";
+  if (["PD", "PONTA DIREITA", "RW"].includes(p)) return "RW";
+  if (["ATA", "ATACANTE", "CENTROAVANTE", "ST", "CF"].includes(p)) return "ST";
 
   return p || "-";
 }
@@ -272,10 +287,10 @@ function getGrupoRankingPorPosicao(posicao?: string) {
   const p = getPosicaoExibicao(posicao);
 
   if (p === "GK") return "goleiro";
-  if (p === "ZAG" || p === "LAT") return "defensores";
-  if (p === "VOL") return "meias-defensivos";
-  if (p === "MC" || p === "MEI") return "meio-campistas";
-  if (p === "PE" || p === "PD" || p === "ATA") return "atacantes";
+  if (p === "CB" || p === "FB") return "defensores";
+  if (p === "CDM") return "meias-defensivos";
+  if (p === "CM" || p === "CAM") return "meio-campistas";
+  if (p === "LW" || p === "RW" || p === "ST") return "atacantes";
 
   return "";
 }
@@ -338,10 +353,8 @@ function criarPartidasRoundRobin(
 
       if (mandanteId === "BYE" || visitanteId === "BYE") continue;
 
-      const mandante =
-        times.find((t) => String(t.id) === String(mandanteId)) || null;
-      const visitante =
-        times.find((t) => String(t.id) === String(visitanteId)) || null;
+      const mandante = times.find((t) => String(t.id) === String(mandanteId)) || null;
+      const visitante = times.find((t) => String(t.id) === String(visitanteId)) || null;
 
       partidas.push({
         id: uid(),
@@ -368,10 +381,7 @@ function criarPartidasRoundRobin(
   return partidas;
 }
 
-function buildGroups(
-  campeonato: Campeonato,
-  times: Equipe[]
-): { nome: string; equipes: GrupoRow[] }[] {
+function buildGroups(campeonato: Campeonato, times: Equipe[]): { nome: string; equipes: GrupoRow[] }[] {
   const partidas = campeonato.partidas || [];
   const gruposData = campeonato.gruposData || [];
 
@@ -395,19 +405,12 @@ function buildGroups(
       })) as GrupoRow[];
 
     const partidasGrupo = partidas.filter(
-      (p) =>
-        p.fase === "grupos" &&
-        p.grupoNome === grupo.nome &&
-        p.status === "finalizado"
+      (p) => p.fase === "grupos" && p.grupoNome === grupo.nome && p.status === "finalizado"
     );
 
     partidasGrupo.forEach((p) => {
-      const mandante = rows.find(
-        (r) => String(r.equipe?.id) === String(p.mandanteId)
-      );
-      const visitante = rows.find(
-        (r) => String(r.equipe?.id) === String(p.visitanteId)
-      );
+      const mandante = rows.find((r) => String(r.equipe?.id) === String(p.mandanteId));
+      const visitante = rows.find((r) => String(r.equipe?.id) === String(p.visitanteId));
 
       if (!mandante || !visitante) return;
 
@@ -444,17 +447,12 @@ function buildGroups(
       if (b.vitorias !== a.vitorias) return b.vitorias - a.vitorias;
       if (b.saldo !== a.saldo) return b.saldo - a.saldo;
       if (b.golsPro !== a.golsPro) return b.golsPro - a.golsPro;
-      return String(a.equipe?.nome || "").localeCompare(
-        String(b.equipe?.nome || "")
-      );
+      return String(a.equipe?.nome || "").localeCompare(String(b.equipe?.nome || ""));
     });
 
     return {
       nome: grupo.nome,
-      equipes: rows.map((row, index) => ({
-        ...row,
-        posicao: index + 1,
-      })),
+      equipes: rows.map((row, index) => ({ ...row, posicao: index + 1 })),
     };
   });
 }
@@ -478,12 +476,8 @@ function buildTabelaGeralPontosCorridos(campeonato: Campeonato, times: Equipe[])
   partidas
     .filter((p) => p.fase === "grupos" && p.status === "finalizado")
     .forEach((p) => {
-      const mandante = rows.find(
-        (r) => String(r.equipe?.id) === String(p.mandanteId)
-      );
-      const visitante = rows.find(
-        (r) => String(r.equipe?.id) === String(p.visitanteId)
-      );
+      const mandante = rows.find((r) => String(r.equipe?.id) === String(p.mandanteId));
+      const visitante = rows.find((r) => String(r.equipe?.id) === String(p.visitanteId));
 
       if (!mandante || !visitante) return;
 
@@ -520,22 +514,14 @@ function buildTabelaGeralPontosCorridos(campeonato: Campeonato, times: Equipe[])
     if (b.vitorias !== a.vitorias) return b.vitorias - a.vitorias;
     if (b.saldo !== a.saldo) return b.saldo - a.saldo;
     if (b.golsPro !== a.golsPro) return b.golsPro - a.golsPro;
-    return String(a.equipe?.nome || "").localeCompare(
-      String(b.equipe?.nome || "")
-    );
+    return String(a.equipe?.nome || "").localeCompare(String(b.equipe?.nome || ""));
   });
 
-  return rows.map((row, index) => ({
-    ...row,
-    posicao: index + 1,
-  }));
+  return rows.map((row, index) => ({ ...row, posicao: index + 1 }));
 }
 
 function getMapaJogadoresDoCampeonato(times: Equipe[]) {
-  const mapa = new Map<
-    string,
-    { equipeNome: string; posicao: string; jogadorNome: string }
-  >();
+  const mapa = new Map<string, { equipeNome: string; posicao: string; jogadorNome: string }>();
 
   times.forEach((time) => {
     (time.elenco || []).forEach((jogador) => {
@@ -551,22 +537,7 @@ function getMapaJogadoresDoCampeonato(times: Equipe[]) {
 }
 
 function getAllPlayerStats(campeonato: Campeonato, times: Equipe[]) {
-  const mapa = new Map<
-    string,
-    {
-      jogadorId: string;
-      jogador: string;
-      equipe: string;
-      posicao: string;
-      gols: number;
-      assistencias: number;
-      desarmes: number;
-      cartoes: number;
-      defesas: number;
-      pontos: number;
-    }
-  >();
-
+  const mapa = new Map<string, RankingPlayerStats>();
   const mapaJogadores = getMapaJogadoresDoCampeonato(times);
 
   (campeonato.partidas || [])
@@ -579,7 +550,8 @@ function getAllPlayerStats(campeonato: Campeonato, times: Equipe[]) {
 
           const chave = `${item.jogadorId}`;
           const atual =
-            mapa.get(chave) || {
+            mapa.get(chave) ||
+            {
               jogadorId: String(item.jogadorId),
               jogador: base.jogadorNome || item.jogadorNome,
               equipe: base.equipeNome,
@@ -616,10 +588,7 @@ function getAllPlayerStats(campeonato: Campeonato, times: Equipe[]) {
   return Array.from(mapa.values());
 }
 
-function ordenarRankingCategoria(
-  itens: RankingPlayerStats[],
-  categoria: RankingCategoria
-) {
+function ordenarRankingCategoria(itens: RankingPlayerStats[], categoria: RankingCategoria) {
   const filtradas = itens.filter((item) =>
     jogadorPassaNoFiltroDeRanking(categoria, item.posicao, {
       gols: item.gols,
@@ -661,10 +630,7 @@ function ordenarRankingCategoria(
   return ordenadas;
 }
 
-function pegarPrimeiroDisponivel(
-  lista: RankingPlayerStats[],
-  usados: Set<string>
-): RankingPlayerStats | null {
+function pegarPrimeiroDisponivel(lista: RankingPlayerStats[], usados: Set<string>): RankingPlayerStats | null {
   for (const item of lista) {
     if (!usados.has(item.jogadorId)) {
       usados.add(item.jogadorId);
@@ -675,35 +641,27 @@ function pegarPrimeiroDisponivel(
 }
 
 function montarEscalacao352(base: RankingPlayerStats[]): EscalacaoSlot[] {
-  const goleiros = ordenarRankingCategoria(base, "goleiro");
-  const defensores = ordenarRankingCategoria(base, "defensores");
-  const meiasDefensivos = ordenarRankingCategoria(base, "meias-defensivos");
-  const meioCampistas = ordenarRankingCategoria(base, "meio-campistas");
-  const atacantes = ordenarRankingCategoria(base, "atacantes");
+  const goalkeepers = ordenarRankingCategoria(base, "goleiro");
+  const defenders = ordenarRankingCategoria(base, "defensores");
+  const defensiveMidfielders = ordenarRankingCategoria(base, "meias-defensivos");
+  const midfielders = ordenarRankingCategoria(base, "meio-campistas");
+  const forwards = ordenarRankingCategoria(base, "atacantes");
 
   const usados = new Set<string>();
 
-  const gk = pegarPrimeiroDisponivel(goleiros, usados);
+  const gk = pegarPrimeiroDisponivel(goalkeepers, usados);
+  const cb1 = pegarPrimeiroDisponivel(defenders, usados);
+  const cb2 = pegarPrimeiroDisponivel(defenders, usados);
+  const cb3 = pegarPrimeiroDisponivel(defenders, usados);
+  const cdm = pegarPrimeiroDisponivel(defensiveMidfielders, usados);
+  const cam1 = pegarPrimeiroDisponivel(midfielders, usados);
+  const cam2 = pegarPrimeiroDisponivel(midfielders, usados);
+  const st1 = pegarPrimeiroDisponivel(forwards, usados);
+  const st2 = pegarPrimeiroDisponivel(forwards, usados);
+  const lw = pegarPrimeiroDisponivel(forwards, usados);
+  const rw = pegarPrimeiroDisponivel(forwards, usados);
 
-  const zag1 = pegarPrimeiroDisponivel(defensores, usados);
-  const zag2 = pegarPrimeiroDisponivel(defensores, usados);
-  const zag3 = pegarPrimeiroDisponivel(defensores, usados);
-
-  const vol = pegarPrimeiroDisponivel(meiasDefensivos, usados);
-
-  const mei1 = pegarPrimeiroDisponivel(meioCampistas, usados);
-  const mei2 = pegarPrimeiroDisponivel(meioCampistas, usados);
-
-  const ataque1 = pegarPrimeiroDisponivel(atacantes, usados);
-  const ataque2 = pegarPrimeiroDisponivel(atacantes, usados);
-  const pontaEsquerda = pegarPrimeiroDisponivel(atacantes, usados);
-  const pontaDireita = pegarPrimeiroDisponivel(atacantes, usados);
-
-  const montar = (
-    slot: string,
-    posicaoLabel: string,
-    jogador: RankingPlayerStats | null
-  ): EscalacaoSlot => ({
+  const montar = (slot: string, posicaoLabel: string, jogador: RankingPlayerStats | null): EscalacaoSlot => ({
     slot,
     posicaoLabel,
     jogador: jogador?.jogador || "-",
@@ -712,16 +670,16 @@ function montarEscalacao352(base: RankingPlayerStats[]): EscalacaoSlot[] {
 
   return [
     montar("GK", "GK", gk),
-    montar("ZAG-1", "ZAG", zag1),
-    montar("ZAG-2", "ZAG", zag2),
-    montar("ZAG-3", "ZAG", zag3),
-    montar("VOL", "VOL", vol),
-    montar("MEI-1", "MEI", mei1),
-    montar("MEI-2", "MEI", mei2),
-    montar("PD", "PD", pontaDireita),
-    montar("PE", "PE", pontaEsquerda),
-    montar("ATA-1", "ATA", ataque1),
-    montar("ATA-2", "ATA", ataque2),
+    montar("CB-1", "CB", cb1),
+    montar("CB-2", "CB", cb2),
+    montar("CB-3", "CB", cb3),
+    montar("CDM", "CDM", cdm),
+    montar("CAM-1", "CAM", cam1),
+    montar("CAM-2", "CAM", cam2),
+    montar("RW", "RW", rw),
+    montar("LW", "LW", lw),
+    montar("ST-1", "ST", st1),
+    montar("ST-2", "ST", st2),
   ];
 }
 
@@ -734,10 +692,7 @@ function getCampeao(campeonato: Campeonato, times: Equipe[]): Equipe | null {
   }
 
   const finais = partidas.filter(
-    (p) =>
-      p.fase === "mata-mata" &&
-      p.faseNome === "Final" &&
-      p.status === "finalizado"
+    (p) => p.fase === "mata-mata" && p.faseNome === "Final" && p.status === "finalizado"
   );
 
   if (!finais.length) return null;
@@ -745,22 +700,14 @@ function getCampeao(campeonato: Campeonato, times: Equipe[]): Equipe | null {
   const final = finais[0];
   if (final.golsMandante === final.golsVisitante) return null;
 
-  const campeaoId =
-    final.golsMandante > final.golsVisitante
-      ? final.mandanteId
-      : final.visitanteId;
+  const campeaoId = final.golsMandante > final.golsVisitante ? final.mandanteId : final.visitanteId;
 
   return times.find((time) => String(time.id) === String(campeaoId)) || null;
 }
 
 function todasPartidasDeGrupoFinalizadas(campeonato: Campeonato) {
-  const partidasGrupo = (campeonato.partidas || []).filter(
-    (p) => p.fase === "grupos"
-  );
-  return (
-    partidasGrupo.length > 0 &&
-    partidasGrupo.every((p) => p.status === "finalizado")
-  );
+  const partidasGrupo = (campeonato.partidas || []).filter((p) => p.fase === "grupos");
+  return partidasGrupo.length > 0 && partidasGrupo.every((p) => p.status === "finalizado");
 }
 
 function getNomeFaseInicialEliminatorias(totalTimes: number) {
@@ -770,16 +717,11 @@ function getNomeFaseInicialEliminatorias(totalTimes: number) {
   return "Final";
 }
 
-function gerarMataMataPuro(
-  campeonato: Campeonato,
-  timesBase: Equipe[]
-): Campeonato {
+function gerarMataMataPuro(campeonato: Campeonato, timesBase: Equipe[]): Campeonato {
   const times = shuffleArray(timesBase);
   if (times.length < 2) return campeonato;
 
-  const partidasExistentes = (campeonato.partidas || []).filter(
-    (p) => p.fase === "mata-mata"
-  );
+  const partidasExistentes = (campeonato.partidas || []).filter((p) => p.fase === "mata-mata");
   if (partidasExistentes.length > 0) return campeonato;
 
   const faseNome = getNomeFaseInicialEliminatorias(times.length);
@@ -812,16 +754,11 @@ function gerarMataMataPuro(
   };
 }
 
-function gerarMataMataMistoAutomatico(
-  campeonato: Campeonato,
-  times: Equipe[]
-): Campeonato {
+function gerarMataMataMistoAutomatico(campeonato: Campeonato, times: Equipe[]): Campeonato {
   if (campeonato.formato !== "pontos-corridos-eliminatorias") return campeonato;
   if (!todasPartidasDeGrupoFinalizadas(campeonato)) return campeonato;
 
-  const jaTemMataMata = (campeonato.partidas || []).some(
-    (p) => p.fase === "mata-mata"
-  );
+  const jaTemMataMata = (campeonato.partidas || []).some((p) => p.fase === "mata-mata");
   if (jaTemMataMata) return campeonato;
 
   const grupos = buildGroups(campeonato, times);
@@ -857,10 +794,7 @@ function gerarMataMataMistoAutomatico(
       });
     }
 
-    return {
-      ...campeonato,
-      partidas: [...(campeonato.partidas || []), ...partidas],
-    };
+    return { ...campeonato, partidas: [...(campeonato.partidas || []), ...partidas] };
   }
 
   if (grupos.length === 2) {
@@ -890,10 +824,7 @@ function gerarMataMataMistoAutomatico(
       });
     });
 
-    return {
-      ...campeonato,
-      partidas: [...(campeonato.partidas || []), ...partidas],
-    };
+    return { ...campeonato, partidas: [...(campeonato.partidas || []), ...partidas] };
   }
 
   if (grupos.length === 4) {
@@ -927,32 +858,18 @@ function gerarMataMataMistoAutomatico(
       });
     });
 
-    return {
-      ...campeonato,
-      partidas: [...(campeonato.partidas || []), ...partidas],
-    };
+    return { ...campeonato, partidas: [...(campeonato.partidas || []), ...partidas] };
   }
 
   if (grupos.length === 8) {
-    const g1 = grupos[0].equipes;
-    const g2 = grupos[1].equipes;
-    const g3 = grupos[2].equipes;
-    const g4 = grupos[3].equipes;
-    const g5 = grupos[4].equipes;
-    const g6 = grupos[5].equipes;
-    const g7 = grupos[6].equipes;
-    const g8 = grupos[7].equipes;
+    const confrontos: [Equipe | null, Equipe | null][] = [];
 
-    const confrontos = [
-      [g1[0]?.equipe || null, g2[1]?.equipe || null],
-      [g2[0]?.equipe || null, g1[1]?.equipe || null],
-      [g3[0]?.equipe || null, g4[1]?.equipe || null],
-      [g4[0]?.equipe || null, g3[1]?.equipe || null],
-      [g5[0]?.equipe || null, g6[1]?.equipe || null],
-      [g6[0]?.equipe || null, g5[1]?.equipe || null],
-      [g7[0]?.equipe || null, g8[1]?.equipe || null],
-      [g8[0]?.equipe || null, g7[1]?.equipe || null],
-    ];
+    for (let i = 0; i < 8; i += 2) {
+      const ga = grupos[i]?.equipes || [];
+      const gb = grupos[i + 1]?.equipes || [];
+      confrontos.push([ga[0]?.equipe || null, gb[1]?.equipe || null]);
+      confrontos.push([gb[0]?.equipe || null, ga[1]?.equipe || null]);
+    }
 
     confrontos.forEach(([a, b]) => {
       if (!a || !b) return;
@@ -972,10 +889,7 @@ function gerarMataMataMistoAutomatico(
       });
     });
 
-    return {
-      ...campeonato,
-      partidas: [...(campeonato.partidas || []), ...partidas],
-    };
+    return { ...campeonato, partidas: [...(campeonato.partidas || []), ...partidas] };
   }
 
   return campeonato;
@@ -983,38 +897,25 @@ function gerarMataMataMistoAutomatico(
 
 function avancarMataMata(campeonato: Campeonato, times: Equipe[]): Campeonato {
   const partidas = campeonato.partidas || [];
-  const fasesOrdem = [
-    "Oitavas de final",
-    "Quartas de final",
-    "Semifinal",
-    "Final",
-  ];
+  const fasesOrdem = ["Oitavas de final", "Quartas de final", "Semifinal", "Final"];
 
   for (let i = 0; i < fasesOrdem.length; i++) {
     const fase = fasesOrdem[i];
-    const partidasDaFase = partidas.filter(
-      (p) => p.fase === "mata-mata" && p.faseNome === fase
-    );
+    const partidasDaFase = partidas.filter((p) => p.fase === "mata-mata" && p.faseNome === fase);
 
     if (!partidasDaFase.length) continue;
-    if (!partidasDaFase.every((p) => p.status === "finalizado")) {
-      return campeonato;
-    }
+    if (!partidasDaFase.every((p) => p.status === "finalizado")) return campeonato;
 
     const proximaFase = fasesOrdem[i + 1];
     if (!proximaFase) return campeonato;
 
-    const jaExisteProxima = partidas.some(
-      (p) => p.fase === "mata-mata" && p.faseNome === proximaFase
-    );
-
+    const jaExisteProxima = partidas.some((p) => p.fase === "mata-mata" && p.faseNome === proximaFase);
     if (jaExisteProxima) continue;
 
     const vencedores = partidasDaFase
       .map((p) => {
         if (p.golsMandante === p.golsVisitante) return null;
-        const id =
-          p.golsMandante > p.golsVisitante ? p.mandanteId : p.visitanteId;
+        const id = p.golsMandante > p.golsVisitante ? p.mandanteId : p.visitanteId;
         return times.find((t) => String(t.id) === String(id)) || null;
       })
       .filter(Boolean) as Equipe[];
@@ -1043,30 +944,24 @@ function avancarMataMata(campeonato: Campeonato, times: Equipe[]): Campeonato {
       });
     }
 
-    return {
-      ...campeonato,
-      partidas: [...partidas, ...novas],
-    };
+    return { ...campeonato, partidas: [...partidas, ...novas] };
   }
 
   return campeonato;
 }
 
-const posicoesCampo352: Record<
-  string,
-  { top: string; left: string; transform?: string }
-> = {
+const posicoesCampo352: Record<string, { top: string; left: string; transform?: string }> = {
   GK: { top: "86%", left: "50%", transform: "translate(-50%, -50%)" },
-  "ZAG-1": { top: "70%", left: "28%", transform: "translate(-50%, -50%)" },
-  "ZAG-2": { top: "70%", left: "50%", transform: "translate(-50%, -50%)" },
-  "ZAG-3": { top: "70%", left: "72%", transform: "translate(-50%, -50%)" },
-  VOL: { top: "56%", left: "50%", transform: "translate(-50%, -50%)" },
-  "MEI-1": { top: "44%", left: "38%", transform: "translate(-50%, -50%)" },
-  "MEI-2": { top: "44%", left: "62%", transform: "translate(-50%, -50%)" },
-  PE: { top: "48%", left: "12%", transform: "translate(-50%, -50%)" },
-  PD: { top: "48%", left: "88%", transform: "translate(-50%, -50%)" },
-  "ATA-1": { top: "18%", left: "38%", transform: "translate(-50%, -50%)" },
-  "ATA-2": { top: "18%", left: "62%", transform: "translate(-50%, -50%)" },
+  "CB-1": { top: "70%", left: "28%", transform: "translate(-50%, -50%)" },
+  "CB-2": { top: "70%", left: "50%", transform: "translate(-50%, -50%)" },
+  "CB-3": { top: "70%", left: "72%", transform: "translate(-50%, -50%)" },
+  CDM: { top: "56%", left: "50%", transform: "translate(-50%, -50%)" },
+  "CAM-1": { top: "44%", left: "38%", transform: "translate(-50%, -50%)" },
+  "CAM-2": { top: "44%", left: "62%", transform: "translate(-50%, -50%)" },
+  LW: { top: "48%", left: "12%", transform: "translate(-50%, -50%)" },
+  RW: { top: "48%", left: "88%", transform: "translate(-50%, -50%)" },
+  "ST-1": { top: "18%", left: "38%", transform: "translate(-50%, -50%)" },
+  "ST-2": { top: "18%", left: "62%", transform: "translate(-50%, -50%)" },
 };
 
 export default function CampeonatoDetalhePage() {
@@ -1081,28 +976,21 @@ export default function CampeonatoDetalhePage() {
   const [carregando, setCarregando] = useState(true);
 
   const [tabAtiva, setTabAtiva] = useState<TabKey>("grupos");
-  const [rankingCategoria, setRankingCategoria] =
-    useState<RankingCategoria>("goleiro");
+  const [rankingCategoria, setRankingCategoria] = useState<RankingCategoria>("goleiro");
 
   const [faseAtiva, setFaseAtiva] = useState("");
   const [buscaTime, setBuscaTime] = useState("");
   const [buscaAplicada, setBuscaAplicada] = useState("");
   const [mensagem, setMensagem] = useState("");
 
-  const [grupoSelecionado, setGrupoSelecionado] = useState("Grupo 1");
+  const [grupoSelecionado, setGrupoSelecionado] = useState("Group 1");
   const [rodadaSelecionada, setRodadaSelecionada] = useState(1);
 
-  const [partidaSelecionada, setPartidaSelecionada] = useState<Partida | null>(
-    null
-  );
+  const [partidaSelecionada, setPartidaSelecionada] = useState<Partida | null>(null);
   const [placarMandanteEdicao, setPlacarMandanteEdicao] = useState(0);
   const [placarVisitanteEdicao, setPlacarVisitanteEdicao] = useState(0);
-  const [statsMandanteEdicao, setStatsMandanteEdicao] = useState<
-    EstatisticaJogador[]
-  >([]);
-  const [statsVisitanteEdicao, setStatsVisitanteEdicao] = useState<
-    EstatisticaJogador[]
-  >([]);
+  const [statsMandanteEdicao, setStatsMandanteEdicao] = useState<EstatisticaJogador[]>([]);
+  const [statsVisitanteEdicao, setStatsVisitanteEdicao] = useState<EstatisticaJogador[]>([]);
 
   useEffect(() => {
     async function carregarDados() {
@@ -1114,14 +1002,13 @@ export default function CampeonatoDetalhePage() {
           data: { user },
         } = await supabase.auth.getUser();
 
-        const isAdmin =
-          normalizarTexto(user?.email) === normalizarTexto(ADMIN_EMAIL);
+        const isAdmin = normalizarTexto(user?.email) === normalizarTexto(ADMIN_EMAIL);
 
         setJogadorLogado(
           user
             ? {
                 id: user.id,
-                nome: user.email?.split("@")[0] || "Usuário",
+                nome: user.email?.split("@")[0] || "User",
                 email: user.email || "",
                 isAdmin,
               }
@@ -1157,26 +1044,20 @@ export default function CampeonatoDetalhePage() {
           console.error(equipesError);
           setEquipes([]);
         } else {
-          setEquipes(
-            Array.isArray(equipesBanco)
-              ? equipesBanco.map(normalizarEquipe)
-              : []
-          );
+          setEquipes(Array.isArray(equipesBanco) ? equipesBanco.map(normalizarEquipe) : []);
         }
 
         const tabs = getVisibleTabs(campeonatoNormalizado.formato);
         setTabAtiva(tabs[0]);
       } catch (error) {
         console.error(error);
-        setMensagem("Erro ao carregar campeonato.");
+        setMensagem("Error loading tournament.");
       } finally {
         setCarregando(false);
       }
     }
 
-    if (campeonatoId) {
-      carregarDados();
-    }
+    if (campeonatoId) carregarDados();
   }, [campeonatoId, supabase]);
 
   const visibleTabs = useMemo(() => {
@@ -1191,11 +1072,7 @@ export default function CampeonatoDetalhePage() {
   }, [campeonato, equipes]);
 
   const vagasRestantes = campeonato
-    ? Math.max(
-        0,
-        Math.min(MAX_TIMES, campeonato.numeroParticipantes) -
-          timesNoCampeonato.length
-      )
+    ? Math.max(0, Math.min(MAX_TIMES, campeonato.numeroParticipantes) - timesNoCampeonato.length)
     : 0;
 
   const grupos = useMemo(() => {
@@ -1203,7 +1080,7 @@ export default function CampeonatoDetalhePage() {
     if (campeonato.formato === "pontos-corridos") {
       return [
         {
-          nome: "Tabela geral",
+          nome: "League Table",
           equipes: buildTabelaGeralPontosCorridos(campeonato, timesNoCampeonato),
         },
       ];
@@ -1223,17 +1100,8 @@ export default function CampeonatoDetalhePage() {
   }, [campeonato]);
 
   const fasesMataMata = useMemo(() => {
-    const fasesUnicas = Array.from(
-      new Set((partidasMataMata || []).map((p) => p.faseNome).filter(Boolean))
-    ) as string[];
-
-    const ordem = [
-      "Oitavas de final",
-      "Quartas de final",
-      "Semifinal",
-      "Final",
-    ];
-
+    const fasesUnicas = Array.from(new Set((partidasMataMata || []).map((p) => p.faseNome).filter(Boolean))) as string[];
+    const ordem = ["Oitavas de final", "Quartas de final", "Semifinal", "Final"];
     return ordem.filter((fase) => fasesUnicas.includes(fase));
   }, [partidasMataMata]);
 
@@ -1252,7 +1120,6 @@ export default function CampeonatoDetalhePage() {
     if (!campeonato) return [];
 
     const base = getAllPlayerStats(campeonato, timesNoCampeonato);
-
     const filtradas = base.filter((item) =>
       jogadorPassaNoFiltroDeRanking(rankingCategoria, item.posicao, {
         gols: item.gols,
@@ -1267,27 +1134,15 @@ export default function CampeonatoDetalhePage() {
 
     if (rankingCategoria === "artilheiro") {
       ordenadas.sort(
-        (a, b) =>
-          b.gols - a.gols ||
-          b.assistencias - a.assistencias ||
-          b.pontos - a.pontos ||
-          a.jogador.localeCompare(b.jogador)
+        (a, b) => b.gols - a.gols || b.assistencias - a.assistencias || b.pontos - a.pontos || a.jogador.localeCompare(b.jogador)
       );
     } else if (rankingCategoria === "lider-assistencias") {
       ordenadas.sort(
-        (a, b) =>
-          b.assistencias - a.assistencias ||
-          b.gols - a.gols ||
-          b.pontos - a.pontos ||
-          a.jogador.localeCompare(b.jogador)
+        (a, b) => b.assistencias - a.assistencias || b.gols - a.gols || b.pontos - a.pontos || a.jogador.localeCompare(b.jogador)
       );
     } else {
       ordenadas.sort(
-        (a, b) =>
-          b.pontos - a.pontos ||
-          b.gols - a.gols ||
-          b.assistencias - a.assistencias ||
-          a.jogador.localeCompare(b.jogador)
+        (a, b) => b.pontos - a.pontos || b.gols - a.gols || b.assistencias - a.assistencias || a.jogador.localeCompare(b.jogador)
       );
     }
 
@@ -1314,11 +1169,8 @@ export default function CampeonatoDetalhePage() {
     const termo = normalizarTexto(buscaAplicada);
 
     return equipes.filter((equipe) => {
-      const jaEsta = timesNoCampeonato.some(
-        (t) => String(t.id) === String(equipe.id)
-      );
+      const jaEsta = timesNoCampeonato.some((t) => String(t.id) === String(equipe.id));
       if (jaEsta) return false;
-
       if (!termo) return true;
 
       return (
@@ -1344,20 +1196,18 @@ export default function CampeonatoDetalhePage() {
         partidas: campeonatoAtualizado.partidas || [],
       };
 
-      const { error } = await supabase
-        .from("campeonatos")
-        .upsert(payload, { onConflict: "id" });
+      const { error } = await supabase.from("campeonatos").upsert(payload, { onConflict: "id" });
 
       if (error) {
         console.error(error);
-        setMensagem("Erro ao salvar campeonato no banco.");
+        setMensagem("Error saving tournament to database.");
         return;
       }
 
       setCampeonato(campeonatoAtualizado);
     } catch (error) {
       console.error(error);
-      setMensagem("Não foi possível salvar o campeonato.");
+      setMensagem("Could not save the tournament.");
     }
   }
 
@@ -1369,24 +1219,21 @@ export default function CampeonatoDetalhePage() {
     if (!campeonato) return;
 
     if (!jogadorLogado?.isAdmin) {
-      setMensagem("Apenas o administrador pode convidar times.");
+      setMensagem("Only the administrator can invite teams.");
       return;
     }
 
-    const limite = Math.min(
-      MAX_TIMES,
-      Number(campeonato.numeroParticipantes || 0)
-    );
+    const limite = Math.min(MAX_TIMES, Number(campeonato.numeroParticipantes || 0));
     const idsAtuais = campeonato.timeIds || [];
 
     if (idsAtuais.length >= limite) {
-      setMensagem("O campeonato já atingiu o limite de participantes.");
+      setMensagem("This tournament has reached the participant limit.");
       return;
     }
 
     const existe = idsAtuais.some((id) => String(id) === String(time.id));
     if (existe) {
-      setMensagem("Esse time já está no campeonato.");
+      setMensagem("This team is already in the tournament.");
       return;
     }
 
@@ -1396,7 +1243,7 @@ export default function CampeonatoDetalhePage() {
     };
 
     await salvarCampeonatoAtualizado(atualizado);
-    setMensagem(`Time "${time.nome}" adicionado com sucesso.`);
+    setMensagem(`Team "${time.nome}" added successfully.`);
   }
 
   async function removerTime(timeId: string) {
@@ -1404,41 +1251,32 @@ export default function CampeonatoDetalhePage() {
 
     const atualizado: Campeonato = {
       ...campeonato,
-      timeIds: (campeonato.timeIds || []).filter(
-        (id) => String(id) !== String(timeId)
-      ),
+      timeIds: (campeonato.timeIds || []).filter((id) => String(id) !== String(timeId)),
       gruposData: (campeonato.gruposData || []).map((grupo) => ({
         ...grupo,
         timeIds: grupo.timeIds.filter((id) => String(id) !== String(timeId)),
       })),
       partidas: (campeonato.partidas || []).filter(
-        (p) =>
-          String(p.mandanteId) !== String(timeId) &&
-          String(p.visitanteId) !== String(timeId)
+        (p) => String(p.mandanteId) !== String(timeId) && String(p.visitanteId) !== String(timeId)
       ),
     };
 
     await salvarCampeonatoAtualizado(atualizado);
-    setMensagem("Time removido do campeonato.");
+    setMensagem("Team removed from the tournament.");
   }
 
   async function excluirCampeonato() {
     if (!campeonato) return;
     if (!jogadorLogado?.isAdmin) return;
 
-    const confirmar = window.confirm(
-      `Excluir o campeonato "${campeonato.titulo}"?`
-    );
+    const confirmar = window.confirm(`Delete tournament "${campeonato.titulo}"?`);
     if (!confirmar) return;
 
-    const { error } = await supabase
-      .from("campeonatos")
-      .delete()
-      .eq("id", campeonato.id);
+    const { error } = await supabase.from("campeonatos").delete().eq("id", campeonato.id);
 
     if (error) {
       console.error(error);
-      setMensagem("Erro ao excluir campeonato.");
+      setMensagem("Error deleting tournament.");
       return;
     }
 
@@ -1451,27 +1289,19 @@ export default function CampeonatoDetalhePage() {
 
     const times = shuffleArray(timesNoCampeonato);
     if (times.length < 2) {
-      setMensagem("Adicione mais times antes de sortear.");
+      setMensagem("Add more teams before drawing groups.");
       return;
     }
 
     if (campeonato.formato === "eliminatorias") {
-      setMensagem(
-        "No modo eliminatórias, use gerar partidas para montar o mata-mata."
-      );
+      setMensagem("In knockout mode, use generate matches to create the bracket.");
       return;
     }
 
-    const quantidadeGrupos =
-      campeonato.formato === "pontos-corridos" ? 1 : getNumeroGrupos(times.length);
+    const quantidadeGrupos = campeonato.formato === "pontos-corridos" ? 1 : getNumeroGrupos(times.length);
 
-    const gruposData: GrupoData[] = Array.from({
-      length: quantidadeGrupos,
-    }).map((_, index) => ({
-      nome:
-        campeonato.formato === "pontos-corridos"
-          ? "Tabela geral"
-          : `Grupo ${index + 1}`,
+    const gruposData: GrupoData[] = Array.from({ length: quantidadeGrupos }).map((_, index) => ({
+      nome: campeonato.formato === "pontos-corridos" ? "League Table" : `Group ${index + 1}`,
       timeIds: [],
     }));
 
@@ -1486,9 +1316,9 @@ export default function CampeonatoDetalhePage() {
     };
 
     await salvarCampeonatoAtualizado(atualizado);
-    setGrupoSelecionado(gruposData[0]?.nome || "Grupo 1");
+    setGrupoSelecionado(gruposData[0]?.nome || "Group 1");
     setRodadaSelecionada(1);
-    setMensagem("Times sorteados com sucesso.");
+    setMensagem("Teams drawn successfully.");
   }
 
   async function gerarPartidasCampeonato() {
@@ -1498,78 +1328,53 @@ export default function CampeonatoDetalhePage() {
     if (campeonato.formato === "eliminatorias") {
       const atualizado = gerarMataMataPuro(campeonato, timesNoCampeonato);
       await salvarCampeonatoAtualizado(atualizado);
-      setMensagem("Partidas do mata-mata geradas com sucesso.");
+      setMensagem("Knockout matches generated successfully.");
       return;
     }
 
     const gruposData = campeonato.gruposData || [];
     if (!gruposData.length) {
-      setMensagem("Primeiro sorteie os times.");
+      setMensagem("Draw teams first.");
       return;
     }
 
-    const partidasGrupos = gruposData.flatMap((grupo) =>
-      criarPartidasRoundRobin(grupo.nome, grupo.timeIds, timesNoCampeonato)
-    );
+    const partidasGrupos = gruposData.flatMap((grupo) => criarPartidasRoundRobin(grupo.nome, grupo.timeIds, timesNoCampeonato));
 
     const atualizado: Campeonato = {
       ...campeonato,
-      partidas: [
-        ...(campeonato.partidas || []).filter((p) => p.fase !== "grupos"),
-        ...partidasGrupos,
-      ],
+      partidas: [...(campeonato.partidas || []).filter((p) => p.fase !== "grupos"), ...partidasGrupos],
     };
 
     await salvarCampeonatoAtualizado(atualizado);
     setRodadaSelecionada(1);
-    setMensagem("Partidas geradas com sucesso.");
+    setMensagem("Matches generated successfully.");
   }
 
   function abrirPartida(partida: Partida) {
-    const mandante =
-      timesNoCampeonato.find((t) => String(t.id) === String(partida.mandanteId)) ||
-      null;
-    const visitante =
-      timesNoCampeonato.find(
-        (t) => String(t.id) === String(partida.visitanteId)
-      ) || null;
+    const mandante = timesNoCampeonato.find((t) => String(t.id) === String(partida.mandanteId)) || null;
+    const visitante = timesNoCampeonato.find((t) => String(t.id) === String(partida.visitanteId)) || null;
 
     setPartidaSelecionada(partida);
     setPlacarMandanteEdicao(partida.golsMandante || 0);
     setPlacarVisitanteEdicao(partida.golsVisitante || 0);
     setStatsMandanteEdicao(
       partida.estatisticasMandante?.length
-        ? partida.estatisticasMandante.map((item) => ({
-            ...item,
-            posicao: getPosicaoExibicao(item.posicao),
-          }))
+        ? partida.estatisticasMandante.map((item) => ({ ...item, posicao: getPosicaoExibicao(item.posicao) }))
         : gerarEstatisticasVazias(mandante)
     );
     setStatsVisitanteEdicao(
       partida.estatisticasVisitante?.length
-        ? partida.estatisticasVisitante.map((item) => ({
-            ...item,
-            posicao: getPosicaoExibicao(item.posicao),
-          }))
+        ? partida.estatisticasVisitante.map((item) => ({ ...item, posicao: getPosicaoExibicao(item.posicao) }))
         : gerarEstatisticasVazias(visitante)
     );
   }
 
-  function atualizarStat(
-    lado: "mandante" | "visitante",
-    index: number,
-    campo: keyof EstatisticaJogador,
-    valor: string | number
-  ) {
-    const lista =
-      lado === "mandante" ? [...statsMandanteEdicao] : [...statsVisitanteEdicao];
+  function atualizarStat(lado: "mandante" | "visitante", index: number, campo: keyof EstatisticaJogador, valor: string | number) {
+    const lista = lado === "mandante" ? [...statsMandanteEdicao] : [...statsVisitanteEdicao];
 
     lista[index] = {
       ...lista[index],
-      [campo]:
-        campo === "jogadorId" || campo === "jogadorNome" || campo === "posicao"
-          ? String(valor)
-          : Number(valor),
+      [campo]: campo === "jogadorId" || campo === "jogadorNome" || campo === "posicao" ? String(valor) : Number(valor),
     };
 
     if (lado === "mandante") setStatsMandanteEdicao(lista);
@@ -1589,14 +1394,8 @@ export default function CampeonatoDetalhePage() {
               golsMandante: placarMandanteEdicao,
               golsVisitante: placarVisitanteEdicao,
               status: "finalizado",
-              estatisticasMandante: statsMandanteEdicao.map((item) => ({
-                ...item,
-                posicao: getPosicaoExibicao(item.posicao),
-              })),
-              estatisticasVisitante: statsVisitanteEdicao.map((item) => ({
-                ...item,
-                posicao: getPosicaoExibicao(item.posicao),
-              })),
+              estatisticasMandante: statsMandanteEdicao.map((item) => ({ ...item, posicao: getPosicaoExibicao(item.posicao) })),
+              estatisticasVisitante: statsVisitanteEdicao.map((item) => ({ ...item, posicao: getPosicaoExibicao(item.posicao) })),
             }
           : p
       ),
@@ -1606,44 +1405,44 @@ export default function CampeonatoDetalhePage() {
     atualizado = avancarMataMata(atualizado, timesNoCampeonato);
 
     await salvarCampeonatoAtualizado(atualizado);
-    setMensagem("Resultado salvo com sucesso e ranking atualizado.");
+    setMensagem("Result saved successfully and ranking updated.");
     setPartidaSelecionada(null);
   }
 
   function renderRankingHeaders() {
     if (rankingCategoria === "artilheiro") {
       return (
-        <tr style={{ background: "#0b0b0b" }}>
+        <tr style={tableHeadRowStyle}>
           <th style={thStyle}>#</th>
-          <th style={thStyle}>Jogadores</th>
-          <th style={thStyle}>Equipe</th>
-          <th style={thStyle}>Gols</th>
+          <th style={thStyle}>Players</th>
+          <th style={thStyle}>Team</th>
+          <th style={thStyle}>Goals</th>
         </tr>
       );
     }
 
     if (rankingCategoria === "lider-assistencias") {
       return (
-        <tr style={{ background: "#0b0b0b" }}>
+        <tr style={tableHeadRowStyle}>
           <th style={thStyle}>#</th>
-          <th style={thStyle}>Jogadores</th>
-          <th style={thStyle}>Equipe</th>
-          <th style={thStyle}>Assistências</th>
+          <th style={thStyle}>Players</th>
+          <th style={thStyle}>Team</th>
+          <th style={thStyle}>Assists</th>
         </tr>
       );
     }
 
     return (
-      <tr style={{ background: "#0b0b0b" }}>
+      <tr style={tableHeadRowStyle}>
         <th style={thStyle}>#</th>
-        <th style={thStyle}>Jogadores</th>
-        <th style={thStyle}>Equipe</th>
+        <th style={thStyle}>Players</th>
+        <th style={thStyle}>Team</th>
         <th style={thStyle}>PTS</th>
-        <th style={thStyle}>Gols</th>
-        <th style={thStyle}>Assistências</th>
-        <th style={thStyle}>Desarmes</th>
-        <th style={thStyle}>Cartões</th>
-        <th style={thStyle}>Defesas</th>
+        <th style={thStyle}>Goals</th>
+        <th style={thStyle}>Assists</th>
+        <th style={thStyle}>Tackles</th>
+        <th style={thStyle}>Cards</th>
+        <th style={thStyle}>Saves</th>
       </tr>
     );
   }
@@ -1692,10 +1491,8 @@ export default function CampeonatoDetalhePage() {
     return (
       <main style={pageStyle}>
         <div style={containerStyle}>
-          <Link href="/" style={backLinkStyle}>
-            ← Voltar
-          </Link>
-          <div style={sectionStyle}>Carregando campeonato...</div>
+          <Link href="/" style={backLinkStyle}>← Back</Link>
+          <div style={sectionStyle}>Loading tournament...</div>
         </div>
       </main>
     );
@@ -1705,10 +1502,8 @@ export default function CampeonatoDetalhePage() {
     return (
       <main style={pageStyle}>
         <div style={containerStyle}>
-          <Link href="/" style={backLinkStyle}>
-            ← Voltar
-          </Link>
-          <div style={sectionStyle}>Campeonato não encontrado.</div>
+          <Link href="/" style={backLinkStyle}>← Back</Link>
+          <div style={sectionStyle}>Tournament not found.</div>
         </div>
       </main>
     );
@@ -1717,324 +1512,175 @@ export default function CampeonatoDetalhePage() {
   return (
     <main style={pageStyle}>
       <div style={containerStyle}>
-        <Link href="/" style={backLinkStyle}>
-          ← Voltar
-        </Link>
+        <Link href="/" style={backLinkStyle}>← Back</Link>
 
-        <section style={sectionStyle}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 18,
-              alignItems: "start",
-            }}
-          >
+        <section style={heroStyle}>
+          <div style={heroGlowStyle} />
+          <div style={heroGridStyle}>
             <div style={posterBoxStyle}>
-              {campeonato.imagem ? (
-                <img
-                  src={campeonato.imagem}
-                  alt={campeonato.titulo}
-                  style={posterImgStyle}
-                />
-              ) : null}
+              {campeonato.imagem ? <img src={campeonato.imagem} alt={campeonato.titulo} style={posterImgStyle} /> : null}
             </div>
 
             <div>
-              <h1 style={{ marginTop: 0, marginBottom: 10 }}>{campeonato.titulo}</h1>
-              <div style={{ color: "#ff4fd8", fontWeight: 700, marginBottom: 6 }}>
-                Tipo: {getFormatoLabel(campeonato.formato)}
-              </div>
-              <div style={subInfoStyle}>
-                Equipes: {Math.min(MAX_TIMES, campeonato.numeroParticipantes)}
-              </div>
-              <div style={subInfoStyle}>
-                Participantes atuais: {timesNoCampeonato.length}
-              </div>
-              <div style={subInfoStyle}>Começa: {campeonato.dataCriacao}</div>
-              <div style={subInfoStyle}>Formação padrão: 3-5-2</div>
+              <div style={eyebrowStyle}>EUROPA LEAGUE STYLE TOURNAMENT</div>
+              <h1 style={titleStyle}>{campeonato.titulo}</h1>
+              <div style={formatBadgeStyle}>{getFormatoLabel(campeonato.formato)}</div>
 
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
-                {visibleTabs.includes("grupos") && (
-                  <button
-                    onClick={() => setTabAtiva("grupos")}
-                    style={tabButtonStyle(tabAtiva === "grupos")}
-                  >
-                    Grupos
-                  </button>
-                )}
-                {visibleTabs.includes("mata-mata") && (
-                  <button
-                    onClick={() => setTabAtiva("mata-mata")}
-                    style={tabButtonStyle(tabAtiva === "mata-mata")}
-                  >
-                    Mata-mata
-                  </button>
-                )}
-                <button
-                  onClick={() => setTabAtiva("ranking")}
-                  style={tabButtonStyle(tabAtiva === "ranking")}
-                >
-                  Ranking
-                </button>
-                <button
-                  onClick={() => setTabAtiva("trofeus")}
-                  style={tabButtonStyle(tabAtiva === "trofeus")}
-                >
-                  Troféus
-                </button>
+              <div style={infoGridStyle}>
+                <div style={infoCardStyle}><strong>Teams</strong><span>{Math.min(MAX_TIMES, campeonato.numeroParticipantes)}</span></div>
+                <div style={infoCardStyle}><strong>Current Teams</strong><span>{timesNoCampeonato.length}</span></div>
+                <div style={infoCardStyle}><strong>Start</strong><span>{campeonato.dataCriacao || "-"}</span></div>
+                <div style={infoCardStyle}><strong>Default XI</strong><span>3-5-2</span></div>
+              </div>
+
+              <div style={tabsWrapStyle}>
+                {visibleTabs.includes("grupos") && <button onClick={() => setTabAtiva("grupos")} style={tabButtonStyle(tabAtiva === "grupos")}>Groups</button>}
+                {visibleTabs.includes("mata-mata") && <button onClick={() => setTabAtiva("mata-mata")} style={tabButtonStyle(tabAtiva === "mata-mata")}>Knockout</button>}
+                <button onClick={() => setTabAtiva("ranking")} style={tabButtonStyle(tabAtiva === "ranking")}>Ranking</button>
+                <button onClick={() => setTabAtiva("trofeus")} style={tabButtonStyle(tabAtiva === "trofeus")}>Trophies</button>
               </div>
 
               {jogadorLogado?.isAdmin && (
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
-                  <button onClick={excluirCampeonato} style={dangerButtonStyle}>
-                    Excluir campeonato
-                  </button>
-
-                  {(campeonato.formato === "pontos-corridos" ||
-                    campeonato.formato === "pontos-corridos-eliminatorias") && (
+                <div style={adminActionsStyle}>
+                  <button onClick={excluirCampeonato} style={dangerButtonStyle}>Delete Tournament</button>
+                  {(campeonato.formato === "pontos-corridos" || campeonato.formato === "pontos-corridos-eliminatorias") && (
                     <>
-                      <button onClick={sortearTimesNosGrupos} style={actionButtonStyle}>
-                        Sortear times
-                      </button>
-                      <button onClick={gerarPartidasCampeonato} style={actionButtonStyle}>
-                        Gerar partidas
-                      </button>
+                      <button onClick={sortearTimesNosGrupos} style={actionButtonStyle}>Draw Teams</button>
+                      <button onClick={gerarPartidasCampeonato} style={actionButtonStyle}>Generate Matches</button>
                     </>
                   )}
-
-                  {campeonato.formato === "eliminatorias" && (
-                    <button onClick={gerarPartidasCampeonato} style={actionButtonStyle}>
-                      Gerar partidas
-                    </button>
-                  )}
+                  {campeonato.formato === "eliminatorias" && <button onClick={gerarPartidasCampeonato} style={actionButtonStyle}>Generate Matches</button>}
                 </div>
               )}
 
-              {mensagem ? (
-                <div style={{ marginTop: 12, color: "#dcdcdc" }}>{mensagem}</div>
-              ) : null}
+              {mensagem ? <div style={messageStyle}>{mensagem}</div> : null}
             </div>
           </div>
         </section>
 
         {tabAtiva === "grupos" && visibleTabs.includes("grupos") && (
-          <section
-            style={{
-              ...sectionStyle,
-              display: "grid",
-              gap: 18,
-              width: "100%",
-              boxSizing: "border-box",
-              overflowX: "hidden",
-            }}
-          >
-            {grupos.map((grupo) => {
-              const totalRodadasDoGrupo =
-                campeonato.formato === "pontos-corridos"
-                  ? Math.max(
-                      1,
-                      ...((campeonato.partidas || [])
-                        .filter((p) => p.fase === "grupos")
-                        .map((p) => p.rodada) || [1])
-                    )
-                  : Math.max(
-                      1,
-                      ...((campeonato.partidas || [])
-                        .filter((p) => p.fase === "grupos" && p.grupoNome === grupo.nome)
-                        .map((p) => p.rodada) || [1])
-                    );
+          <section style={sectionStyle}>
+            <div style={sectionHeaderStyle}>
+              <h2 style={sectionTitleStyle}>Groups & Fixtures</h2>
+              <span style={sectionPillStyle}>League Stage</span>
+            </div>
 
-              const partidasDoGrupo = (campeonato.partidas || []).filter((p) => {
-                if (campeonato.formato === "pontos-corridos") {
-                  return p.fase === "grupos" && p.rodada === rodadaSelecionada;
-                }
+            <div style={{ display: "grid", gap: 18 }}>
+              {grupos.map((grupo) => {
+                const totalRodadasDoGrupo =
+                  campeonato.formato === "pontos-corridos"
+                    ? Math.max(1, ...((campeonato.partidas || []).filter((p) => p.fase === "grupos").map((p) => p.rodada) || [1]))
+                    : Math.max(1, ...((campeonato.partidas || []).filter((p) => p.fase === "grupos" && p.grupoNome === grupo.nome).map((p) => p.rodada) || [1]));
+
+                const partidasDoGrupo = (campeonato.partidas || []).filter((p) => {
+                  if (campeonato.formato === "pontos-corridos") return p.fase === "grupos" && p.rodada === rodadaSelecionada;
+                  return p.fase === "grupos" && p.grupoNome === grupo.nome && p.rodada === rodadaSelecionada;
+                });
 
                 return (
-                  p.fase === "grupos" &&
-                  p.grupoNome === grupo.nome &&
-                  p.rodada === rodadaSelecionada
-                );
-              });
+                  <div key={grupo.nome} style={boxStyle}>
+                    <h3 style={boxTitleStyle}>{grupo.nome}</h3>
 
-              return (
-                <div key={grupo.nome} style={boxStyle}>
-                  <h2 style={{ marginTop: 0 }}>{grupo.nome}</h2>
-
-                  <div style={tableWrapStyle}>
-                    <table
-                      style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}
-                    >
-                      <thead>
-                        <tr style={{ background: "#0b0b0b" }}>
-                          <th style={thStyle}>#</th>
-                          <th style={thStyle}>Equipes</th>
-                          <th style={thStyle}>P</th>
-                          <th style={thStyle}>J</th>
-                          <th style={thStyle}>V</th>
-                          <th style={thStyle}>E</th>
-                          <th style={thStyle}>D</th>
-                          <th style={thStyle}>GP</th>
-                          <th style={thStyle}>GC</th>
-                          <th style={thStyle}>SG</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {grupo.equipes.map((row) => (
-                          <tr key={`${grupo.nome}-${row.posicao}`}>
-                            <td style={tdStyle}>{row.posicao}</td>
-                            <td style={tdStyle}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                <div style={clubMiniLogoStyle}>
-                                  {row.equipe?.imagem ? (
-                                    <img
-                                      src={row.equipe.imagem}
-                                      alt={row.equipe.nome}
-                                      style={clubMiniLogoImgStyle}
-                                    />
-                                  ) : null}
-                                </div>
-                                <span>{row.equipe?.nome || ""}</span>
-                              </div>
-                            </td>
-                            <td style={tdStyle}>{row.pontos}</td>
-                            <td style={tdStyle}>{row.jogos}</td>
-                            <td style={tdStyle}>{row.vitorias}</td>
-                            <td style={tdStyle}>{row.empates}</td>
-                            <td style={tdStyle}>{row.derrotas}</td>
-                            <td style={tdStyle}>{row.golsPro}</td>
-                            <td style={tdStyle}>{row.golsContra}</td>
-                            <td style={tdStyle}>{row.saldo}</td>
+                    <div style={tableWrapStyle}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+                        <thead>
+                          <tr style={tableHeadRowStyle}>
+                            <th style={thStyle}>#</th>
+                            <th style={thStyle}>Teams</th>
+                            <th style={thStyle}>PTS</th>
+                            <th style={thStyle}>P</th>
+                            <th style={thStyle}>W</th>
+                            <th style={thStyle}>D</th>
+                            <th style={thStyle}>L</th>
+                            <th style={thStyle}>GF</th>
+                            <th style={thStyle}>GA</th>
+                            <th style={thStyle}>GD</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div style={{ marginTop: 18 }}>
-                    <h3 style={{ marginTop: 0, marginBottom: 12 }}>Jogos</h3>
-
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-                      {Array.from({ length: totalRodadasDoGrupo }).map((_, index) => {
-                        const rodada = index + 1;
-                        return (
-                          <button
-                            key={`${grupo.nome}-rodada-${rodada}`}
-                            onClick={() => {
-                              setGrupoSelecionado(grupo.nome);
-                              setRodadaSelecionada(rodada);
-                            }}
-                            style={smallTabStyle(
-                              grupoSelecionado === grupo.nome &&
-                                rodadaSelecionada === rodada
-                            )}
-                          >
-                            {rodada}ª Rodada
-                          </button>
-                        );
-                      })}
+                        </thead>
+                        <tbody>
+                          {grupo.equipes.map((row) => (
+                            <tr key={`${grupo.nome}-${row.posicao}`}>
+                              <td style={tdStyle}>{row.posicao}</td>
+                              <td style={tdStyle}>
+                                <div style={teamCellStyle}>
+                                  <div style={clubMiniLogoStyle}>{row.equipe?.imagem ? <img src={row.equipe.imagem} alt={row.equipe.nome} style={clubMiniLogoImgStyle} /> : null}</div>
+                                  <span>{row.equipe?.nome || ""}</span>
+                                </div>
+                              </td>
+                              <td style={tdStyle}>{row.pontos}</td>
+                              <td style={tdStyle}>{row.jogos}</td>
+                              <td style={tdStyle}>{row.vitorias}</td>
+                              <td style={tdStyle}>{row.empates}</td>
+                              <td style={tdStyle}>{row.derrotas}</td>
+                              <td style={tdStyle}>{row.golsPro}</td>
+                              <td style={tdStyle}>{row.golsContra}</td>
+                              <td style={tdStyle}>{row.saldo}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
 
-                    <div style={{ display: "grid", gap: 12 }}>
-                      {partidasDoGrupo.map((partida) => {
-                        const mandante =
-                          timesNoCampeonato.find(
-                            (t) => String(t.id) === String(partida.mandanteId)
-                          ) || null;
-                        const visitante =
-                          timesNoCampeonato.find(
-                            (t) => String(t.id) === String(partida.visitanteId)
-                          ) || null;
-
-                        return (
-                          <button
-                            key={partida.id}
-                            onClick={() => abrirPartida(partida)}
-                            style={matchCardStyle}
-                          >
-                            <div
-                              style={{
-                                display: "grid",
-                                gridTemplateColumns: "42px 1fr auto 1fr 42px",
-                                gap: 10,
-                                alignItems: "center",
+                    <div style={{ marginTop: 18 }}>
+                      <h3 style={fixtureTitleStyle}>Fixtures</h3>
+                      <div style={roundTabsStyle}>
+                        {Array.from({ length: totalRodadasDoGrupo }).map((_, index) => {
+                          const rodada = index + 1;
+                          return (
+                            <button
+                              key={`${grupo.nome}-round-${rodada}`}
+                              onClick={() => {
+                                setGrupoSelecionado(grupo.nome);
+                                setRodadaSelecionada(rodada);
                               }}
+                              style={smallTabStyle(grupoSelecionado === grupo.nome && rodadaSelecionada === rodada)}
                             >
-                              <div style={matchLogoBoxStyle}>
-                                {mandante?.imagem ? (
-                                  <img
-                                    src={mandante.imagem}
-                                    alt={mandante.nome}
-                                    style={matchLogoImgStyle}
-                                  />
-                                ) : null}
-                              </div>
+                              Round {rodada}
+                            </button>
+                          );
+                        })}
+                      </div>
 
-                              <div style={{ textAlign: "left", fontWeight: 700 }}>
-                                {mandante?.nome || "Time"}
-                              </div>
+                      <div style={{ display: "grid", gap: 12 }}>
+                        {partidasDoGrupo.map((partida) => {
+                          const mandante = timesNoCampeonato.find((t) => String(t.id) === String(partida.mandanteId)) || null;
+                          const visitante = timesNoCampeonato.find((t) => String(t.id) === String(partida.visitanteId)) || null;
 
-                              <div style={matchScoreStyle}>
-                                {partida.status === "finalizado"
-                                  ? `${partida.golsMandante} x ${partida.golsVisitante}`
-                                  : "0 x 0"}
+                          return (
+                            <button key={partida.id} onClick={() => abrirPartida(partida)} style={matchCardStyle}>
+                              <div style={matchRowStyle}>
+                                <div style={matchLogoBoxStyle}>{mandante?.imagem ? <img src={mandante.imagem} alt={mandante.nome} style={matchLogoImgStyle} /> : null}</div>
+                                <div style={matchHomeNameStyle}>{mandante?.nome || "Team"}</div>
+                                <div style={matchScoreStyle}>{partida.status === "finalizado" ? `${partida.golsMandante} x ${partida.golsVisitante}` : "0 x 0"}</div>
+                                <div style={matchAwayNameStyle}>{visitante?.nome || "Team"}</div>
+                                <div style={matchLogoBoxStyle}>{visitante?.imagem ? <img src={visitante.imagem} alt={visitante.nome} style={matchLogoImgStyle} /> : null}</div>
                               </div>
+                            </button>
+                          );
+                        })}
 
-                              <div style={{ textAlign: "right", fontWeight: 700 }}>
-                                {visitante?.nome || "Time"}
-                              </div>
-
-                              <div style={matchLogoBoxStyle}>
-                                {visitante?.imagem ? (
-                                  <img
-                                    src={visitante.imagem}
-                                    alt={visitante.nome}
-                                    style={matchLogoImgStyle}
-                                  />
-                                ) : null}
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-
-                      {partidasDoGrupo.length === 0 && (
-                        <div style={{ color: "#bdbdbd" }}>Nenhuma partida gerada nesta rodada.</div>
-                      )}
+                        {partidasDoGrupo.length === 0 && <div style={emptyStateStyle}>No matches generated for this round.</div>}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
 
-            <div style={boxStyle}>
-              <h2 style={{ marginTop: 0 }}>Times no campeonato</h2>
-
+            <div style={{ ...boxStyle, marginTop: 18 }}>
+              <h3 style={boxTitleStyle}>Teams in Tournament</h3>
               <div style={{ display: "grid", gap: 10 }}>
                 {timesNoCampeonato.map((time) => (
                   <div key={time.id} style={inviteRowStyle}>
-                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                      <div style={inviteLogoStyle}>
-                        {time.imagem ? (
-                          <img src={time.imagem} alt={time.nome} style={inviteLogoImgStyle} />
-                        ) : null}
-                      </div>
+                    <div style={inviteTeamInfoStyle}>
+                      <div style={inviteLogoStyle}>{time.imagem ? <img src={time.imagem} alt={time.nome} style={inviteLogoImgStyle} /> : null}</div>
                       <div>
-                        <div style={{ fontWeight: 700 }}>{time.nome}</div>
-                        <div style={{ color: "#bbb", fontSize: 13 }}>
-                          {time.pais} • {time.plataforma}
-                        </div>
+                        <div style={{ fontWeight: 800 }}>{time.nome}</div>
+                        <div style={mutedSmallStyle}>{time.pais} • {time.plataforma}</div>
                       </div>
                     </div>
 
-                    {jogadorLogado?.isAdmin && (
-                      <button
-                        onClick={() => removerTime(String(time.id))}
-                        style={removeButtonStyle}
-                      >
-                        Remover
-                      </button>
-                    )}
+                    {jogadorLogado?.isAdmin && <button onClick={() => removerTime(String(time.id))} style={removeButtonStyle}>Remove</button>}
                   </div>
                 ))}
               </div>
@@ -2043,25 +1689,17 @@ export default function CampeonatoDetalhePage() {
         )}
 
         {tabAtiva === "mata-mata" && visibleTabs.includes("mata-mata") && (
-          <section
-            style={{
-              ...sectionStyle,
-              width: "100%",
-              boxSizing: "border-box",
-              overflowX: "hidden",
-            }}
-          >
-            <h2 style={{ marginTop: 0 }}>Mata-mata</h2>
+          <section style={sectionStyle}>
+            <div style={sectionHeaderStyle}>
+              <h2 style={sectionTitleStyle}>Knockout Stage</h2>
+              <span style={sectionPillStyle}>Road to the Final</span>
+            </div>
 
             {fasesMataMata.length > 0 && (
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+              <div style={roundTabsStyle}>
                 {fasesMataMata.map((fase) => (
-                  <button
-                    key={fase}
-                    onClick={() => setFaseAtiva(fase)}
-                    style={smallTabStyle(faseAtiva === fase)}
-                  >
-                    {fase}
+                  <button key={fase} onClick={() => setFaseAtiva(fase)} style={smallTabStyle(faseAtiva === fase)}>
+                    {getFaseLabel(fase)}
                   </button>
                 ))}
               </div>
@@ -2069,72 +1707,30 @@ export default function CampeonatoDetalhePage() {
 
             <div style={{ display: "grid", gap: 14 }}>
               {partidasMataMata.length === 0 ? (
-                <div style={{ color: "#cfcfcf" }}>
+                <div style={emptyStateStyle}>
                   {campeonato.formato === "pontos-corridos-eliminatorias"
-                    ? "O mata-mata será criado automaticamente após o fim da fase de grupos."
-                    : "Clique em gerar partidas para montar o mata-mata."}
+                    ? "The knockout stage will be created automatically after all group matches are completed."
+                    : "Click generate matches to create the knockout bracket."}
                 </div>
               ) : (
                 partidasDaFaseAtiva.map((partida, index) => {
-                  const mandante =
-                    timesNoCampeonato.find(
-                      (t) => String(t.id) === String(partida.mandanteId)
-                    ) || null;
-                  const visitante =
-                    timesNoCampeonato.find(
-                      (t) => String(t.id) === String(partida.visitanteId)
-                    ) || null;
+                  const mandante = timesNoCampeonato.find((t) => String(t.id) === String(partida.mandanteId)) || null;
+                  const visitante = timesNoCampeonato.find((t) => String(t.id) === String(partida.visitanteId)) || null;
 
                   return (
-                    <button
-                      key={partida.id}
-                      onClick={() => abrirPartida(partida)}
-                      style={matchCardStyle}
-                    >
-                      <div style={{ color: "#bdbdbd", marginBottom: 10, textAlign: "center" }}>
-                        {partida.faseNome || `Match ${index + 1}`}
-                      </div>
-
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "1fr auto 1fr",
-                          gap: 18,
-                          alignItems: "center",
-                        }}
-                      >
-                        <div style={{ textAlign: "center" }}>
-                          <div style={matchBigLogoStyle}>
-                            {mandante?.imagem ? (
-                              <img
-                                src={mandante.imagem}
-                                alt={mandante.nome}
-                                style={matchLogoImgStyle}
-                              />
-                            ) : null}
-                          </div>
-                          <div style={{ fontWeight: 700 }}>{mandante?.nome || ""}</div>
+                    <button key={partida.id} onClick={() => abrirPartida(partida)} style={knockoutCardStyle}>
+                      <div style={knockoutPhaseStyle}>{getFaseLabel(partida.faseNome) || `Match ${index + 1}`}</div>
+                      <div style={knockoutGridStyle}>
+                        <div style={knockoutTeamStyle}>
+                          <div style={matchBigLogoStyle}>{mandante?.imagem ? <img src={mandante.imagem} alt={mandante.nome} style={matchLogoImgStyle} /> : null}</div>
+                          <div style={{ fontWeight: 800 }}>{mandante?.nome || ""}</div>
                         </div>
 
-                        <div style={{ textAlign: "center" }}>
-                          <div style={scorePillStyle}>
-                            {partida.status === "finalizado"
-                              ? `${partida.golsMandante} x ${partida.golsVisitante}`
-                              : "0 x 0"}
-                          </div>
-                        </div>
+                        <div style={scorePillStyle}>{partida.status === "finalizado" ? `${partida.golsMandante} x ${partida.golsVisitante}` : "0 x 0"}</div>
 
-                        <div style={{ textAlign: "center" }}>
-                          <div style={matchBigLogoStyle}>
-                            {visitante?.imagem ? (
-                              <img
-                                src={visitante.imagem}
-                                alt={visitante.nome}
-                                style={matchLogoImgStyle}
-                              />
-                            ) : null}
-                          </div>
-                          <div style={{ fontWeight: 700 }}>{visitante?.nome || ""}</div>
+                        <div style={knockoutTeamStyle}>
+                          <div style={matchBigLogoStyle}>{visitante?.imagem ? <img src={visitante.imagem} alt={visitante.nome} style={matchLogoImgStyle} /> : null}</div>
+                          <div style={{ fontWeight: 800 }}>{visitante?.nome || ""}</div>
                         </div>
                       </div>
                     </button>
@@ -2147,101 +1743,33 @@ export default function CampeonatoDetalhePage() {
 
         {tabAtiva === "ranking" && (
           <section style={sectionStyle}>
-            <h2 style={{ marginTop: 0 }}>Ranking do campeonato</h2>
+            <div style={sectionHeaderStyle}>
+              <h2 style={sectionTitleStyle}>Tournament Ranking</h2>
+              <span style={sectionPillStyle}>{getRankingCategoriaLabel(rankingCategoria)}</span>
+            </div>
 
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-              <button
-                onClick={() => setRankingCategoria("goleiro")}
-                style={smallTabStyle(rankingCategoria === "goleiro")}
-              >
-                Goleiro
-              </button>
-              <button
-                onClick={() => setRankingCategoria("defensores")}
-                style={smallTabStyle(rankingCategoria === "defensores")}
-              >
-                Defensores
-              </button>
-              <button
-                onClick={() => setRankingCategoria("meias-defensivos")}
-                style={smallTabStyle(rankingCategoria === "meias-defensivos")}
-              >
-                Meias Defensivos
-              </button>
-              <button
-                onClick={() => setRankingCategoria("meio-campistas")}
-                style={smallTabStyle(rankingCategoria === "meio-campistas")}
-              >
-                Meio campistas
-              </button>
-              <button
-                onClick={() => setRankingCategoria("atacantes")}
-                style={smallTabStyle(rankingCategoria === "atacantes")}
-              >
-                Atacantes
-              </button>
-              <button
-                onClick={() => setRankingCategoria("artilheiro")}
-                style={smallTabStyle(rankingCategoria === "artilheiro")}
-              >
-                Artilheiro
-              </button>
-              <button
-                onClick={() => setRankingCategoria("lider-assistencias")}
-                style={smallTabStyle(rankingCategoria === "lider-assistencias")}
-              >
-                Líder Assistências
-              </button>
+            <div style={roundTabsStyle}>
+              <button onClick={() => setRankingCategoria("goleiro")} style={smallTabStyle(rankingCategoria === "goleiro")}>Goalkeepers</button>
+              <button onClick={() => setRankingCategoria("defensores")} style={smallTabStyle(rankingCategoria === "defensores")}>Defenders</button>
+              <button onClick={() => setRankingCategoria("meias-defensivos")} style={smallTabStyle(rankingCategoria === "meias-defensivos")}>Defensive Midfielders</button>
+              <button onClick={() => setRankingCategoria("meio-campistas")} style={smallTabStyle(rankingCategoria === "meio-campistas")}>Midfielders</button>
+              <button onClick={() => setRankingCategoria("atacantes")} style={smallTabStyle(rankingCategoria === "atacantes")}>Forwards</button>
+              <button onClick={() => setRankingCategoria("artilheiro")} style={smallTabStyle(rankingCategoria === "artilheiro")}>Top Scorers</button>
+              <button onClick={() => setRankingCategoria("lider-assistencias")} style={smallTabStyle(rankingCategoria === "lider-assistencias")}>Assist Leaders</button>
             </div>
 
             <div style={tableWrapStyle}>
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  minWidth:
-                    rankingCategoria === "artilheiro" ||
-                    rankingCategoria === "lider-assistencias"
-                      ? 620
-                      : 900,
-                }}
-              >
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: rankingCategoria === "artilheiro" || rankingCategoria === "lider-assistencias" ? 620 : 900 }}>
                 <thead>{renderRankingHeaders()}</thead>
                 <tbody>{rankingRows.map((row) => renderRankingRow(row))}</tbody>
               </table>
             </div>
 
-            <div
-              style={{
-                marginTop: 24,
-                background: "#070707",
-                border: "1px solid #1b1b1b",
-                borderRadius: 18,
-                padding: 18,
-              }}
-            >
-              <h3 style={{ marginTop: 0, marginBottom: 16 }}>Escalação do campeonato</h3>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                  gap: 18,
-                  alignItems: "start",
-                  width: "100%",
-                }}
-              >
+            <div style={lineupPanelStyle}>
+              <h3 style={boxTitleStyle}>Team of the Tournament</h3>
+              <div style={lineupGridStyle}>
                 <div>
-                  <div
-                    style={{
-                      textAlign: "center",
-                      fontWeight: 700,
-                      marginBottom: 10,
-                    }}
-                  >
-                    Escalação 3 - 5 - 2
-                  </div>
-
+                  <div style={lineupTitleStyle}>3 - 5 - 2 Formation</div>
                   <div style={campoWrapperStyle}>
                     <div style={campoInternoStyle}>
                       {escalacaoDoCampeonato.map((item) => {
@@ -2249,16 +1777,8 @@ export default function CampeonatoDetalhePage() {
                         if (!pos) return null;
 
                         return (
-                          <div
-                            key={item.slot}
-                            style={{
-                              ...jogadorCampoStyle,
-                              top: pos.top,
-                              left: pos.left,
-                              transform: pos.transform,
-                            }}
-                          >
-                            <div style={camisaCampoStyle}>👕</div>
+                          <div key={item.slot} style={{ ...jogadorCampoStyle, top: pos.top, left: pos.left, transform: pos.transform }}>
+                            <div style={camisaCampoStyle}>◆</div>
                             <div style={nomeCampoStyle}>{item.jogador}</div>
                           </div>
                         );
@@ -2267,18 +1787,18 @@ export default function CampeonatoDetalhePage() {
                   </div>
                 </div>
 
-                <div>
+                <div style={tableWrapStyle}>
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
-                      <tr style={{ background: "#0b0b0b" }}>
+                      <tr style={tableHeadRowStyle}>
                         <th style={thStyle}>POS</th>
-                        <th style={thStyle}>NOME</th>
-                        <th style={thStyle}>TIME</th>
+                        <th style={thStyle}>NAME</th>
+                        <th style={thStyle}>TEAM</th>
                       </tr>
                     </thead>
                     <tbody>
                       {escalacaoDoCampeonato.map((item) => (
-                        <tr key={`esc-${item.slot}`}>
+                        <tr key={`lineup-${item.slot}`}>
                           <td style={tdStyle}>{item.posicaoLabel}</td>
                           <td style={tdStyle}>{item.jogador}</td>
                           <td style={tdStyle}>{item.equipe}</td>
@@ -2294,33 +1814,20 @@ export default function CampeonatoDetalhePage() {
 
         {tabAtiva === "trofeus" && (
           <section style={sectionStyle}>
-            <h2 style={{ marginTop: 0 }}>Troféus</h2>
+            <div style={sectionHeaderStyle}>
+              <h2 style={sectionTitleStyle}>Trophies</h2>
+              <span style={sectionPillStyle}>Champion</span>
+            </div>
 
             {!campeao ? (
-              <div style={{ color: "#cfcfcf" }}>
-                O campeão aparecerá automaticamente ao fim da final ou ao término
-                de todos os jogos do pontos corridos.
-              </div>
+              <div style={emptyStateStyle}>The champion will appear automatically after the final or after all league matches are completed.</div>
             ) : (
               <div style={championCardStyle}>
-                <div style={championLogoStyle}>
-                  {campeao.imagem ? (
-                    <img
-                      src={campeao.imagem}
-                      alt={campeao.nome}
-                      style={championLogoImgStyle}
-                    />
-                  ) : null}
-                </div>
-
+                <div style={championLogoStyle}>{campeao.imagem ? <img src={campeao.imagem} alt={campeao.nome} style={championLogoImgStyle} /> : null}</div>
                 <div>
-                  <div style={{ color: "#ff4fd8", fontWeight: 800, marginBottom: 4 }}>
-                    Campeão do campeonato
-                  </div>
-                  <div style={{ fontSize: 28, fontWeight: 800 }}>{campeao.nome}</div>
-                  <div style={{ color: "#bdbdbd", fontSize: 14 }}>
-                    {campeao.pais} • {campeao.plataforma}
-                  </div>
+                  <div style={championLabelStyle}>Tournament Champion</div>
+                  <div style={championNameStyle}>{campeao.nome}</div>
+                  <div style={mutedSmallStyle}>{campeao.pais} • {campeao.plataforma}</div>
                 </div>
               </div>
             )}
@@ -2328,52 +1835,28 @@ export default function CampeonatoDetalhePage() {
         )}
 
         <section style={sectionStyle}>
-          <h2 style={{ marginTop: 0 }}>Gerenciamento de convites</h2>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr auto",
-              gap: 10,
-              marginBottom: 12,
-            }}
-          >
-            <input
-              value={buscaTime}
-              onChange={(e) => setBuscaTime(e.target.value)}
-              placeholder="Buscar time por nome, país ou plataforma"
-              style={inputStyle}
-            />
-            <button onClick={pesquisarTimes} style={actionButtonStyle}>
-              Buscar
-            </button>
+          <div style={sectionHeaderStyle}>
+            <h2 style={sectionTitleStyle}>Invitation Management</h2>
+            <span style={sectionPillStyle}>{vagasRestantes} slots left</span>
           </div>
 
-          <div style={{ color: "#cfcfcf", marginBottom: 16 }}>
-            Vagas restantes: {vagasRestantes}
+          <div style={searchGridStyle}>
+            <input value={buscaTime} onChange={(e) => setBuscaTime(e.target.value)} placeholder="Search team by name, country or platform" style={inputStyle} />
+            <button onClick={pesquisarTimes} style={actionButtonStyle}>Search</button>
           </div>
 
           <div style={{ display: "grid", gap: 10 }}>
             {equipesFiltradas.map((time) => (
               <div key={time.id} style={inviteRowStyle}>
-                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                  <div style={inviteLogoStyle}>
-                    {time.imagem ? (
-                      <img src={time.imagem} alt={time.nome} style={inviteLogoImgStyle} />
-                    ) : null}
-                  </div>
-
+                <div style={inviteTeamInfoStyle}>
+                  <div style={inviteLogoStyle}>{time.imagem ? <img src={time.imagem} alt={time.nome} style={inviteLogoImgStyle} /> : null}</div>
                   <div>
-                    <div style={{ fontWeight: 700 }}>{time.nome}</div>
-                    <div style={{ color: "#bbb", fontSize: 13 }}>
-                      {time.pais} • {time.plataforma}
-                    </div>
+                    <div style={{ fontWeight: 800 }}>{time.nome}</div>
+                    <div style={mutedSmallStyle}>{time.pais} • {time.plataforma}</div>
                   </div>
                 </div>
 
-                <button onClick={() => convidarTime(time)} style={actionButtonStyle}>
-                  Convidar
-                </button>
+                <button onClick={() => convidarTime(time)} style={actionButtonStyle}>Invite</button>
               </div>
             ))}
           </div>
@@ -2383,135 +1866,45 @@ export default function CampeonatoDetalhePage() {
       {partidaSelecionada && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 12,
-                marginBottom: 18,
-              }}
-            >
-              <h3 style={{ margin: 0 }}>Editar partida</h3>
-              <button onClick={() => setPartidaSelecionada(null)} style={closeButtonStyle}>
-                Fechar
-              </button>
+            <div style={modalHeaderStyle}>
+              <h3 style={{ margin: 0 }}>Edit Match</h3>
+              <button onClick={() => setPartidaSelecionada(null)} style={closeButtonStyle}>Close</button>
             </div>
 
             {(() => {
-              const mandante =
-                timesNoCampeonato.find(
-                  (t) => String(t.id) === String(partidaSelecionada.mandanteId)
-                ) || null;
-              const visitante =
-                timesNoCampeonato.find(
-                  (t) => String(t.id) === String(partidaSelecionada.visitanteId)
-                ) || null;
+              const mandante = timesNoCampeonato.find((t) => String(t.id) === String(partidaSelecionada.mandanteId)) || null;
+              const visitante = timesNoCampeonato.find((t) => String(t.id) === String(partidaSelecionada.visitanteId)) || null;
 
               return (
                 <>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr auto 1fr",
-                      gap: 16,
-                      alignItems: "center",
-                      marginBottom: 20,
-                    }}
-                  >
+                  <div style={editScoreGridStyle}>
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ fontWeight: 700, marginBottom: 8 }}>
-                        {mandante?.nome || ""}
-                      </div>
-                      <input
-                        type="number"
-                        value={placarMandanteEdicao}
-                        onChange={(e) => setPlacarMandanteEdicao(Number(e.target.value))}
-                        style={scoreInputStyle}
-                      />
+                      <div style={editTeamNameStyle}>{mandante?.nome || ""}</div>
+                      <input type="number" value={placarMandanteEdicao} onChange={(e) => setPlacarMandanteEdicao(Number(e.target.value))} style={scoreInputStyle} />
                     </div>
 
-                    <div style={{ fontSize: 28, fontWeight: 800 }}>x</div>
+                    <div style={scoreXStyle}>x</div>
 
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ fontWeight: 700, marginBottom: 8 }}>
-                        {visitante?.nome || ""}
-                      </div>
-                      <input
-                        type="number"
-                        value={placarVisitanteEdicao}
-                        onChange={(e) => setPlacarVisitanteEdicao(Number(e.target.value))}
-                        style={scoreInputStyle}
-                      />
+                      <div style={editTeamNameStyle}>{visitante?.nome || ""}</div>
+                      <input type="number" value={placarVisitanteEdicao} onChange={(e) => setPlacarVisitanteEdicao(Number(e.target.value))} style={scoreInputStyle} />
                     </div>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <div style={statsGridStyle}>
                     <div style={statsBoxStyle}>
                       <div style={statsBoxTitleStyle}>{mandante?.nome || ""}</div>
-                      <div style={statsHeaderStyle}>
-                        <span>Nome</span>
-                        <span>Pos</span>
-                        <span>G</span>
-                        <span>A</span>
-                        <span>DE</span>
-                        <span>C</span>
-                        <span>DF</span>
-                      </div>
-
+                      <div style={statsHeaderStyle}><span>Name</span><span>Pos</span><span>G</span><span>A</span><span>TK</span><span>C</span><span>SV</span></div>
                       <div style={{ display: "grid", gap: 8 }}>
                         {statsMandanteEdicao.map((stat, index) => (
                           <div key={`${stat.jogadorId}-${index}`} style={statsRowStyle}>
                             <input value={stat.jogadorNome} disabled style={statInputNameStyle} />
-                            <input
-                              value={getPosicaoExibicao(stat.posicao)}
-                              disabled
-                              style={statInputPosStyle}
-                            />
-                            <input
-                              type="number"
-                              value={stat.gols}
-                              onChange={(e) =>
-                                atualizarStat("mandante", index, "gols", e.target.value)
-                              }
-                              style={statInputMiniStyle}
-                            />
-                            <input
-                              type="number"
-                              value={stat.assistencias}
-                              onChange={(e) =>
-                                atualizarStat(
-                                  "mandante",
-                                  index,
-                                  "assistencias",
-                                  e.target.value
-                                )
-                              }
-                              style={statInputMiniStyle}
-                            />
-                            <input
-                              type="number"
-                              value={stat.desarmes}
-                              onChange={(e) =>
-                                atualizarStat("mandante", index, "desarmes", e.target.value)
-                              }
-                              style={statInputMiniStyle}
-                            />
-                            <input
-                              type="number"
-                              value={stat.cartoes}
-                              onChange={(e) =>
-                                atualizarStat("mandante", index, "cartoes", e.target.value)
-                              }
-                              style={statInputMiniStyle}
-                            />
-                            <input
-                              type="number"
-                              value={stat.defesas}
-                              onChange={(e) =>
-                                atualizarStat("mandante", index, "defesas", e.target.value)
-                              }
-                              style={statInputMiniStyle}
-                            />
+                            <input value={getPosicaoExibicao(stat.posicao)} disabled style={statInputPosStyle} />
+                            <input type="number" value={stat.gols} onChange={(e) => atualizarStat("mandante", index, "gols", e.target.value)} style={statInputMiniStyle} />
+                            <input type="number" value={stat.assistencias} onChange={(e) => atualizarStat("mandante", index, "assistencias", e.target.value)} style={statInputMiniStyle} />
+                            <input type="number" value={stat.desarmes} onChange={(e) => atualizarStat("mandante", index, "desarmes", e.target.value)} style={statInputMiniStyle} />
+                            <input type="number" value={stat.cartoes} onChange={(e) => atualizarStat("mandante", index, "cartoes", e.target.value)} style={statInputMiniStyle} />
+                            <input type="number" value={stat.defesas} onChange={(e) => atualizarStat("mandante", index, "defesas", e.target.value)} style={statInputMiniStyle} />
                           </div>
                         ))}
                       </div>
@@ -2519,80 +1912,25 @@ export default function CampeonatoDetalhePage() {
 
                     <div style={statsBoxStyle}>
                       <div style={statsBoxTitleStyle}>{visitante?.nome || ""}</div>
-                      <div style={statsHeaderStyle}>
-                        <span>Nome</span>
-                        <span>Pos</span>
-                        <span>G</span>
-                        <span>A</span>
-                        <span>DE</span>
-                        <span>C</span>
-                        <span>DF</span>
-                      </div>
-
+                      <div style={statsHeaderStyle}><span>Name</span><span>Pos</span><span>G</span><span>A</span><span>TK</span><span>C</span><span>SV</span></div>
                       <div style={{ display: "grid", gap: 8 }}>
                         {statsVisitanteEdicao.map((stat, index) => (
                           <div key={`${stat.jogadorId}-${index}`} style={statsRowStyle}>
                             <input value={stat.jogadorNome} disabled style={statInputNameStyle} />
-                            <input
-                              value={getPosicaoExibicao(stat.posicao)}
-                              disabled
-                              style={statInputPosStyle}
-                            />
-                            <input
-                              type="number"
-                              value={stat.gols}
-                              onChange={(e) =>
-                                atualizarStat("visitante", index, "gols", e.target.value)
-                              }
-                              style={statInputMiniStyle}
-                            />
-                            <input
-                              type="number"
-                              value={stat.assistencias}
-                              onChange={(e) =>
-                                atualizarStat(
-                                  "visitante",
-                                  index,
-                                  "assistencias",
-                                  e.target.value
-                                )
-                              }
-                              style={statInputMiniStyle}
-                            />
-                            <input
-                              type="number"
-                              value={stat.desarmes}
-                              onChange={(e) =>
-                                atualizarStat("visitante", index, "desarmes", e.target.value)
-                              }
-                              style={statInputMiniStyle}
-                            />
-                            <input
-                              type="number"
-                              value={stat.cartoes}
-                              onChange={(e) =>
-                                atualizarStat("visitante", index, "cartoes", e.target.value)
-                              }
-                              style={statInputMiniStyle}
-                            />
-                            <input
-                              type="number"
-                              value={stat.defesas}
-                              onChange={(e) =>
-                                atualizarStat("visitante", index, "defesas", e.target.value)
-                              }
-                              style={statInputMiniStyle}
-                            />
+                            <input value={getPosicaoExibicao(stat.posicao)} disabled style={statInputPosStyle} />
+                            <input type="number" value={stat.gols} onChange={(e) => atualizarStat("visitante", index, "gols", e.target.value)} style={statInputMiniStyle} />
+                            <input type="number" value={stat.assistencias} onChange={(e) => atualizarStat("visitante", index, "assistencias", e.target.value)} style={statInputMiniStyle} />
+                            <input type="number" value={stat.desarmes} onChange={(e) => atualizarStat("visitante", index, "desarmes", e.target.value)} style={statInputMiniStyle} />
+                            <input type="number" value={stat.cartoes} onChange={(e) => atualizarStat("visitante", index, "cartoes", e.target.value)} style={statInputMiniStyle} />
+                            <input type="number" value={stat.defesas} onChange={(e) => atualizarStat("visitante", index, "defesas", e.target.value)} style={statInputMiniStyle} />
                           </div>
                         ))}
                       </div>
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
-                    <button onClick={salvarResultadoPartida} style={actionButtonStyle}>
-                      Salvar
-                    </button>
+                  <div style={modalFooterStyle}>
+                    <button onClick={salvarResultadoPartida} style={actionButtonStyle}>Save Result</button>
                   </div>
                 </>
               );
@@ -2604,16 +1942,24 @@ export default function CampeonatoDetalhePage() {
   );
 }
 
-const pageStyle: React.CSSProperties = {
+const ORANGE = "#ff6900";
+const ORANGE_DARK = "#c44700";
+const BLACK = "#050505";
+const PANEL = "#0b0b0f";
+const LINE = "#242024";
+const MUTED = "#bdb6b1";
+
+const pageStyle: CSSProperties = {
   minHeight: "100vh",
-  background: "#000",
+  background:
+    "radial-gradient(circle at top left, rgba(255,105,0,0.24), transparent 34%), radial-gradient(circle at top right, rgba(255,105,0,0.12), transparent 28%), #000",
   color: "#fff",
   fontFamily: "Arial, sans-serif",
   padding: "24px 12px 40px",
   overflowX: "hidden",
 };
 
-const containerStyle: React.CSSProperties = {
+const containerStyle: CSSProperties = {
   width: "100%",
   maxWidth: "1180px",
   margin: "0 auto",
@@ -2621,18 +1967,51 @@ const containerStyle: React.CSSProperties = {
   overflowX: "hidden",
 };
 
-const backLinkStyle: React.CSSProperties = {
+const backLinkStyle: CSSProperties = {
   display: "inline-block",
-  color: "#ff4fd8",
+  color: ORANGE,
   textDecoration: "none",
-  fontWeight: 700,
+  fontWeight: 800,
   marginBottom: 18,
 };
 
-const sectionStyle: React.CSSProperties = {
-  background: "#050505",
-  border: "1px solid #161616",
-  borderRadius: 22,
+const heroStyle: CSSProperties = {
+  position: "relative",
+  background: "linear-gradient(135deg, rgba(255,105,0,0.22), rgba(5,5,5,0.98) 38%, rgba(15,15,18,1))",
+  border: `1px solid rgba(255,105,0,0.35)`,
+  borderRadius: 28,
+  padding: 24,
+  marginBottom: 24,
+  width: "100%",
+  boxSizing: "border-box",
+  overflow: "hidden",
+  boxShadow: "0 24px 80px rgba(255,105,0,0.12)",
+};
+
+const heroGlowStyle: CSSProperties = {
+  position: "absolute",
+  width: 240,
+  height: 240,
+  borderRadius: "50%",
+  background: "rgba(255,105,0,0.18)",
+  filter: "blur(40px)",
+  right: -80,
+  top: -90,
+  pointerEvents: "none",
+};
+
+const heroGridStyle: CSSProperties = {
+  position: "relative",
+  display: "grid",
+  gridTemplateColumns: "140px 1fr",
+  gap: 22,
+  alignItems: "start",
+};
+
+const sectionStyle: CSSProperties = {
+  background: "linear-gradient(180deg, rgba(18,18,22,0.98), rgba(5,5,5,0.98))",
+  border: `1px solid ${LINE}`,
+  borderRadius: 24,
   padding: 22,
   marginBottom: 24,
   width: "100%",
@@ -2640,377 +2019,496 @@ const sectionStyle: React.CSSProperties = {
   overflowX: "hidden",
 };
 
-const boxStyle: React.CSSProperties = {
-  background: "#070707",
-  border: "1px solid #1b1b1b",
-  borderRadius: 18,
-  padding: 18,
-  width: "100%",
-  boxSizing: "border-box",
-};
-
-const posterBoxStyle: React.CSSProperties = {
-  width: 114,
-  height: 164,
-  borderRadius: 16,
-  background: "#111",
-  overflow: "hidden",
-};
-
-const posterImgStyle: React.CSSProperties = {
-  width: "100%",
-  height: "100%",
-  objectFit: "cover",
-};
-
-const subInfoStyle: React.CSSProperties = {
-  color: "#d7d7d7",
-  marginBottom: 6,
-};
-
-function tabButtonStyle(active: boolean): React.CSSProperties {
-  return {
-    background: active ? "#ff4fd8" : "transparent",
-    color: active ? "#000" : "#fff",
-    border: "1px solid #ff4fd8",
-    borderRadius: 999,
-    padding: "10px 16px",
-    fontWeight: 700,
-    cursor: "pointer",
-  };
-}
-
-function smallTabStyle(active: boolean): React.CSSProperties {
-  return {
-    background: active ? "#ff4fd8" : "transparent",
-    color: active ? "#000" : "#fff",
-    border: "1px solid #ff4fd8",
-    borderRadius: 999,
-    padding: "8px 12px",
-    fontWeight: 700,
-    cursor: "pointer",
-    fontSize: 13,
-  };
-}
-
-const actionButtonStyle: React.CSSProperties = {
-  background: "#ff4fd8",
-  color: "#000",
-  border: "none",
-  borderRadius: 12,
-  padding: "10px 14px",
-  fontWeight: 800,
-  cursor: "pointer",
-};
-
-const dangerButtonStyle: React.CSSProperties = {
-  background: "#7a103f",
-  color: "#fff",
-  border: "1px solid #ff4fd8",
-  borderRadius: 12,
-  padding: "10px 14px",
-  fontWeight: 800,
-  cursor: "pointer",
-};
-
-const removeButtonStyle: React.CSSProperties = {
-  background: "transparent",
-  color: "#ff4fd8",
-  border: "1px solid #ff4fd8",
-  borderRadius: 12,
-  padding: "8px 14px",
-  fontWeight: 700,
-  cursor: "pointer",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  background: "#0a0a0a",
-  color: "#fff",
-  border: "1px solid #252525",
-  borderRadius: 12,
-  padding: "12px 14px",
-  outline: "none",
-  boxSizing: "border-box",
-};
-
-const selectStyle: React.CSSProperties = {
-  width: "100%",
-  background: "#0a0a0a",
-  color: "#fff",
-  border: "1px solid #252525",
-  borderRadius: 12,
-  padding: "12px 14px",
-  outline: "none",
-};
-
-const tableWrapStyle: React.CSSProperties = {
-  width: "100%",
-  overflowX: "auto",
-  overflowY: "hidden",
-  borderRadius: 16,
-  border: "1px solid #1c1c1c",
-  boxSizing: "border-box",
-  background: "#070707",
-  WebkitOverflowScrolling: "touch",
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "14px 12px",
-  color: "#bdbdbd",
-  fontSize: 13,
-  borderBottom: "1px solid #1f1f1f",
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "14px 12px",
-  borderBottom: "1px solid #161616",
-  color: "#fff",
-  fontSize: 14,
-};
-
-const clubMiniLogoStyle: React.CSSProperties = {
-  width: 28,
-  height: 28,
-  borderRadius: 8,
-  background: "#111",
-  overflow: "hidden",
-  flexShrink: 0,
-};
-
-const clubMiniLogoImgStyle: React.CSSProperties = {
-  width: "100%",
-  height: "100%",
-  objectFit: "cover",
-};
-
-const matchCardStyle: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #1d1d1d",
-  borderRadius: 18,
-  padding: 16,
-  background: "#070707",
-  cursor: "pointer",
-  boxSizing: "border-box",
-};
-
-const matchLogoBoxStyle: React.CSSProperties = {
-  width: 42,
-  height: 42,
-  borderRadius: 10,
-  background: "#111",
-  overflow: "hidden",
-};
-
-const matchBigLogoStyle: React.CSSProperties = {
-  width: 44,
-  height: 44,
-  borderRadius: 10,
-  background: "#111",
-  overflow: "hidden",
-  margin: "0 auto 10px",
-};
-
-const matchLogoImgStyle: React.CSSProperties = {
-  width: "100%",
-  height: "100%",
-  objectFit: "cover",
-};
-
-const matchScoreStyle: React.CSSProperties = {
-  minWidth: 90,
-  textAlign: "center",
-  fontWeight: 800,
-  fontSize: 22,
-};
-
-const scorePillStyle: React.CSSProperties = {
-  background: "#ff4fd8",
-  color: "#000",
-  padding: "8px 18px",
-  borderRadius: 999,
-  fontWeight: 800,
-  minWidth: 110,
-};
-
-const inviteRowStyle: React.CSSProperties = {
+const sectionHeaderStyle: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
   gap: 12,
   flexWrap: "wrap",
-  border: "1px solid #1c1c1c",
-  borderRadius: 18,
-  padding: 14,
-  background: "#070707",
+  marginBottom: 18,
+};
+
+const sectionTitleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: 24,
+  letterSpacing: "-0.02em",
+};
+
+const sectionPillStyle: CSSProperties = {
+  border: `1px solid rgba(255,105,0,0.55)`,
+  color: ORANGE,
+  borderRadius: 999,
+  padding: "7px 12px",
+  fontWeight: 800,
+  fontSize: 12,
+  textTransform: "uppercase",
+};
+
+const boxStyle: CSSProperties = {
+  background: PANEL,
+  border: `1px solid ${LINE}`,
+  borderRadius: 20,
+  padding: 18,
   width: "100%",
   boxSizing: "border-box",
 };
 
-const inviteLogoStyle: React.CSSProperties = {
-  width: 42,
-  height: 42,
-  borderRadius: 10,
-  background: "#111",
-  overflow: "hidden",
+const boxTitleStyle: CSSProperties = {
+  marginTop: 0,
+  marginBottom: 14,
+  fontSize: 20,
 };
 
-const inviteLogoImgStyle: React.CSSProperties = {
+const posterBoxStyle: CSSProperties = {
+  width: 124,
+  height: 176,
+  borderRadius: 20,
+  background: "linear-gradient(135deg, #1a1a1a, #050505)",
+  overflow: "hidden",
+  border: `1px solid rgba(255,105,0,0.32)`,
+  boxShadow: "0 12px 30px rgba(0,0,0,0.35)",
+};
+
+const posterImgStyle: CSSProperties = {
   width: "100%",
   height: "100%",
   objectFit: "cover",
 };
 
-const championCardStyle: React.CSSProperties = {
+const eyebrowStyle: CSSProperties = {
+  color: ORANGE,
+  fontWeight: 900,
+  letterSpacing: "0.14em",
+  fontSize: 12,
+  marginBottom: 8,
+};
+
+const titleStyle: CSSProperties = {
+  marginTop: 0,
+  marginBottom: 10,
+  fontSize: "clamp(30px, 5vw, 54px)",
+  lineHeight: 1,
+};
+
+const formatBadgeStyle: CSSProperties = {
+  display: "inline-flex",
+  color: "#080808",
+  background: ORANGE,
+  fontWeight: 900,
+  padding: "8px 13px",
+  borderRadius: 999,
+  marginBottom: 14,
+};
+
+const infoGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+  gap: 10,
+  marginTop: 10,
+};
+
+const infoCardStyle: CSSProperties = {
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "rgba(0,0,0,0.25)",
+  borderRadius: 16,
+  padding: 12,
+  display: "grid",
+  gap: 5,
+  color: MUTED,
+};
+
+const tabsWrapStyle: CSSProperties = {
   display: "flex",
-  alignItems: "center",
-  gap: 16,
-  background: "#070707",
-  border: "1px solid #1d1d1d",
-  borderRadius: 18,
-  padding: 18,
-  maxWidth: 520,
+  gap: 10,
+  flexWrap: "wrap",
+  marginTop: 18,
 };
 
-const championLogoStyle: React.CSSProperties = {
-  width: 72,
-  height: 72,
-  borderRadius: 14,
-  overflow: "hidden",
-  background: "#111",
-  flexShrink: 0,
-};
-
-const championLogoImgStyle: React.CSSProperties = {
-  width: "100%",
-  height: "100%",
-  objectFit: "cover",
-};
-
-const modalOverlayStyle: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,0.7)",
+const adminActionsStyle: CSSProperties = {
   display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 20,
-  zIndex: 9999,
+  gap: 10,
+  flexWrap: "wrap",
+  marginTop: 14,
 };
 
-const modalContentStyle: React.CSSProperties = {
-  width: "100%",
-  maxWidth: 1180,
-  maxHeight: "90vh",
-  overflowY: "auto",
-  background: "#050505",
-  border: "1px solid #1f1f1f",
-  borderRadius: 22,
-  padding: 22,
-};
-
-const closeButtonStyle: React.CSSProperties = {
-  background: "transparent",
+const messageStyle: CSSProperties = {
+  marginTop: 12,
   color: "#fff",
-  border: "1px solid #303030",
-  borderRadius: 10,
-  padding: "8px 12px",
+  background: "rgba(255,105,0,0.11)",
+  border: "1px solid rgba(255,105,0,0.22)",
+  borderRadius: 14,
+  padding: "10px 12px",
+};
+
+function tabButtonStyle(active: boolean): CSSProperties {
+  return {
+    background: active ? ORANGE : "rgba(0,0,0,0.15)",
+    color: active ? "#080808" : "#fff",
+    border: `1px solid ${active ? ORANGE : "rgba(255,105,0,0.55)"}`,
+    borderRadius: 999,
+    padding: "10px 16px",
+    fontWeight: 900,
+    cursor: "pointer",
+  };
+}
+
+function smallTabStyle(active: boolean): CSSProperties {
+  return {
+    background: active ? ORANGE : "transparent",
+    color: active ? "#080808" : "#fff",
+    border: `1px solid ${active ? ORANGE : "rgba(255,105,0,0.55)"}`,
+    borderRadius: 999,
+    padding: "8px 12px",
+    fontWeight: 900,
+    cursor: "pointer",
+    fontSize: 13,
+  };
+}
+
+const actionButtonStyle: CSSProperties = {
+  background: ORANGE,
+  color: "#080808",
+  border: "none",
+  borderRadius: 13,
+  padding: "10px 14px",
+  fontWeight: 900,
   cursor: "pointer",
 };
 
-const scoreInputStyle: React.CSSProperties = {
-  width: 90,
-  background: "#0a0a0a",
+const dangerButtonStyle: CSSProperties = {
+  background: "rgba(156, 31, 31, 0.35)",
   color: "#fff",
-  border: "1px solid #252525",
+  border: "1px solid rgba(255,105,0,0.6)",
+  borderRadius: 13,
+  padding: "10px 14px",
+  fontWeight: 900,
+  cursor: "pointer",
+};
+
+const removeButtonStyle: CSSProperties = {
+  background: "transparent",
+  color: ORANGE,
+  border: `1px solid ${ORANGE}`,
   borderRadius: 12,
+  padding: "8px 14px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const inputStyle: CSSProperties = {
+  width: "100%",
+  background: "#09090b",
+  color: "#fff",
+  border: "1px solid #2d2826",
+  borderRadius: 13,
   padding: "12px 14px",
-  textAlign: "center",
-  fontSize: 20,
-  fontWeight: 800,
+  outline: "none",
+  boxSizing: "border-box",
 };
 
-const statsBoxStyle: React.CSSProperties = {
-  background: "#0b0b0b",
-  border: "1px solid #1d1d1d",
-  borderRadius: 18,
-  padding: 16,
+const tableWrapStyle: CSSProperties = {
+  width: "100%",
+  overflowX: "auto",
+  overflowY: "hidden",
+  borderRadius: 16,
+  border: `1px solid ${LINE}`,
+  boxSizing: "border-box",
+  background: "#070707",
+  WebkitOverflowScrolling: "touch",
 };
 
-const statsBoxTitleStyle: React.CSSProperties = {
-  fontWeight: 800,
-  fontSize: 18,
+const tableHeadRowStyle: CSSProperties = {
+  background: "linear-gradient(90deg, rgba(255,105,0,0.22), rgba(12,12,12,1))",
+};
+
+const thStyle: CSSProperties = {
+  textAlign: "left",
+  padding: "14px 12px",
+  color: "#f2e8e0",
+  fontSize: 13,
+  borderBottom: "1px solid #272020",
+  whiteSpace: "nowrap",
+};
+
+const tdStyle: CSSProperties = {
+  padding: "14px 12px",
+  borderBottom: "1px solid #171316",
+  color: "#fff",
+  fontSize: 14,
+  whiteSpace: "nowrap",
+};
+
+const teamCellStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+};
+
+const clubMiniLogoStyle: CSSProperties = {
+  width: 28,
+  height: 28,
+  borderRadius: 9,
+  background: "#111",
+  overflow: "hidden",
+  flexShrink: 0,
+  border: "1px solid rgba(255,105,0,0.2)",
+};
+
+const clubMiniLogoImgStyle: CSSProperties = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+};
+
+const fixtureTitleStyle: CSSProperties = {
+  marginTop: 0,
   marginBottom: 12,
 };
 
-const statsHeaderStyle: React.CSSProperties = {
+const roundTabsStyle: CSSProperties = {
+  display: "flex",
+  gap: 10,
+  flexWrap: "wrap",
+  marginBottom: 16,
+};
+
+const matchCardStyle: CSSProperties = {
+  width: "100%",
+  border: "1px solid rgba(255,105,0,0.18)",
+  borderRadius: 18,
+  padding: 16,
+  background: "linear-gradient(90deg, rgba(255,105,0,0.08), rgba(7,7,7,1))",
+  color: "#fff",
+  cursor: "pointer",
+  boxSizing: "border-box",
+};
+
+const matchRowStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "1.8fr 70px repeat(5, 50px)",
-  gap: 8,
-  marginBottom: 10,
-  color: "#ddd",
-  fontWeight: 700,
+  gridTemplateColumns: "42px 1fr auto 1fr 42px",
+  gap: 10,
+  alignItems: "center",
+};
+
+const matchLogoBoxStyle: CSSProperties = {
+  width: 42,
+  height: 42,
+  borderRadius: 12,
+  background: "#111",
+  overflow: "hidden",
+  border: "1px solid rgba(255,105,0,0.22)",
+};
+
+const matchBigLogoStyle: CSSProperties = {
+  width: 48,
+  height: 48,
+  borderRadius: 13,
+  background: "#111",
+  overflow: "hidden",
+  margin: "0 auto 10px",
+  border: "1px solid rgba(255,105,0,0.28)",
+};
+
+const matchLogoImgStyle: CSSProperties = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+};
+
+const matchHomeNameStyle: CSSProperties = {
+  textAlign: "left",
+  fontWeight: 800,
+};
+
+const matchAwayNameStyle: CSSProperties = {
+  textAlign: "right",
+  fontWeight: 800,
+};
+
+const matchScoreStyle: CSSProperties = {
+  minWidth: 90,
+  textAlign: "center",
+  fontWeight: 900,
+  fontSize: 22,
+  color: ORANGE,
+};
+
+const knockoutCardStyle: CSSProperties = {
+  ...matchCardStyle,
+  padding: 18,
+};
+
+const knockoutPhaseStyle: CSSProperties = {
+  color: ORANGE,
+  marginBottom: 12,
+  textAlign: "center",
+  fontWeight: 900,
+  textTransform: "uppercase",
+  fontSize: 12,
+  letterSpacing: "0.08em",
+};
+
+const knockoutGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr auto 1fr",
+  gap: 18,
+  alignItems: "center",
+};
+
+const knockoutTeamStyle: CSSProperties = {
+  textAlign: "center",
+};
+
+const scorePillStyle: CSSProperties = {
+  background: ORANGE,
+  color: "#080808",
+  padding: "8px 18px",
+  borderRadius: 999,
+  fontWeight: 900,
+  minWidth: 110,
+  textAlign: "center",
+};
+
+const emptyStateStyle: CSSProperties = {
+  color: MUTED,
+  background: "rgba(255,255,255,0.03)",
+  border: "1px dashed rgba(255,105,0,0.25)",
+  borderRadius: 16,
+  padding: 16,
+};
+
+const inviteRowStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+  flexWrap: "wrap",
+  border: `1px solid ${LINE}`,
+  borderRadius: 18,
+  padding: 14,
+  background: "#08080b",
+  width: "100%",
+  boxSizing: "border-box",
+};
+
+const inviteTeamInfoStyle: CSSProperties = {
+  display: "flex",
+  gap: 12,
+  alignItems: "center",
+};
+
+const inviteLogoStyle: CSSProperties = {
+  width: 42,
+  height: 42,
+  borderRadius: 12,
+  background: "#111",
+  overflow: "hidden",
+  border: "1px solid rgba(255,105,0,0.24)",
+};
+
+const inviteLogoImgStyle: CSSProperties = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+};
+
+const mutedSmallStyle: CSSProperties = {
+  color: MUTED,
   fontSize: 13,
 };
 
-const statsRowStyle: React.CSSProperties = {
+const searchGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "1.8fr 70px repeat(5, 50px)",
-  gap: 8,
+  gridTemplateColumns: "1fr auto",
+  gap: 10,
+  marginBottom: 16,
 };
 
-const statInputNameStyle: React.CSSProperties = {
-  background: "#121212",
-  color: "#fff",
-  border: "1px solid #252525",
-  borderRadius: 10,
-  padding: "10px 12px",
+const championCardStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 16,
+  background: "linear-gradient(135deg, rgba(255,105,0,0.18), #070707)",
+  border: "1px solid rgba(255,105,0,0.32)",
+  borderRadius: 20,
+  padding: 18,
+  maxWidth: 560,
 };
 
-const statInputPosStyle: React.CSSProperties = {
-  background: "#121212",
-  color: "#fff",
-  border: "1px solid #252525",
-  borderRadius: 10,
-  padding: "10px 8px",
+const championLogoStyle: CSSProperties = {
+  width: 76,
+  height: 76,
+  borderRadius: 16,
+  overflow: "hidden",
+  background: "#111",
+  flexShrink: 0,
+  border: "1px solid rgba(255,105,0,0.28)",
+};
+
+const championLogoImgStyle: CSSProperties = {
   width: "100%",
+  height: "100%",
+  objectFit: "cover",
+};
+
+const championLabelStyle: CSSProperties = {
+  color: ORANGE,
+  fontWeight: 900,
+  marginBottom: 4,
+  textTransform: "uppercase",
+  fontSize: 12,
+  letterSpacing: "0.08em",
+};
+
+const championNameStyle: CSSProperties = {
+  fontSize: 28,
+  fontWeight: 900,
+};
+
+const lineupPanelStyle: CSSProperties = {
+  marginTop: 24,
+  background: PANEL,
+  border: `1px solid ${LINE}`,
+  borderRadius: 20,
+  padding: 18,
+};
+
+const lineupGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  gap: 18,
+  alignItems: "start",
+  width: "100%",
+};
+
+const lineupTitleStyle: CSSProperties = {
   textAlign: "center",
-  fontWeight: 700,
+  fontWeight: 900,
+  marginBottom: 10,
 };
 
-const statInputMiniStyle: React.CSSProperties = {
-  background: "#121212",
-  color: "#fff",
-  border: "1px solid #252525",
-  borderRadius: 10,
-  padding: "10px 12px",
-  width: "100%",
-};
-
-const campoWrapperStyle: React.CSSProperties = {
+const campoWrapperStyle: CSSProperties = {
   width: "100%",
   maxWidth: 320,
   margin: "0 auto",
-  borderRadius: 14,
+  borderRadius: 18,
   overflow: "hidden",
-  border: "1px solid #2a2a2a",
-  background: "linear-gradient(180deg, #3b7d2a 0%, #2f6c22 50%, #3b7d2a 100%)",
+  border: "1px solid rgba(255,105,0,0.3)",
+  background: "linear-gradient(180deg, #1c421b 0%, #153515 50%, #1c421b 100%)",
   padding: 8,
   boxSizing: "border-box",
 };
 
-const campoInternoStyle: React.CSSProperties = {
+const campoInternoStyle: CSSProperties = {
   position: "relative",
   width: "100%",
   aspectRatio: "0.7 / 1",
   border: "2px solid rgba(255,255,255,0.25)",
   boxSizing: "border-box",
-  background:
-    "repeating-linear-gradient(180deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 36px, transparent 36px, transparent 72px)",
+  background: "repeating-linear-gradient(180deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 36px, transparent 36px, transparent 72px)",
 };
 
-const jogadorCampoStyle: React.CSSProperties = {
+const jogadorCampoStyle: CSSProperties = {
   position: "absolute",
   display: "flex",
   flexDirection: "column",
@@ -3020,18 +2518,161 @@ const jogadorCampoStyle: React.CSSProperties = {
   textAlign: "center",
 };
 
-const camisaCampoStyle: React.CSSProperties = {
+const camisaCampoStyle: CSSProperties = {
   fontSize: 20,
   lineHeight: 1,
+  color: ORANGE,
 };
 
-const nomeCampoStyle: React.CSSProperties = {
+const nomeCampoStyle: CSSProperties = {
   fontSize: 10,
   color: "#fff",
-  fontWeight: 700,
+  fontWeight: 800,
   textShadow: "0 1px 2px rgba(0,0,0,0.85)",
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
   maxWidth: "100%",
+};
+
+const modalOverlayStyle: CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,0.78)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 20,
+  zIndex: 9999,
+};
+
+const modalContentStyle: CSSProperties = {
+  width: "100%",
+  maxWidth: 1180,
+  maxHeight: "90vh",
+  overflowY: "auto",
+  background: BLACK,
+  border: "1px solid rgba(255,105,0,0.28)",
+  borderRadius: 24,
+  padding: 22,
+  boxShadow: "0 24px 80px rgba(0,0,0,0.6)",
+};
+
+const modalHeaderStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  marginBottom: 18,
+};
+
+const closeButtonStyle: CSSProperties = {
+  background: "transparent",
+  color: "#fff",
+  border: "1px solid #3a302b",
+  borderRadius: 10,
+  padding: "8px 12px",
+  cursor: "pointer",
+};
+
+const editScoreGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr auto 1fr",
+  gap: 16,
+  alignItems: "center",
+  marginBottom: 20,
+};
+
+const editTeamNameStyle: CSSProperties = {
+  fontWeight: 900,
+  marginBottom: 8,
+};
+
+const scoreInputStyle: CSSProperties = {
+  width: 90,
+  background: "#0a0a0a",
+  color: "#fff",
+  border: "1px solid #2f2823",
+  borderRadius: 12,
+  padding: "12px 14px",
+  textAlign: "center",
+  fontSize: 20,
+  fontWeight: 900,
+};
+
+const scoreXStyle: CSSProperties = {
+  fontSize: 28,
+  fontWeight: 900,
+  color: ORANGE,
+};
+
+const statsGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+  gap: 16,
+};
+
+const statsBoxStyle: CSSProperties = {
+  background: PANEL,
+  border: `1px solid ${LINE}`,
+  borderRadius: 18,
+  padding: 16,
+  overflowX: "auto",
+};
+
+const statsBoxTitleStyle: CSSProperties = {
+  fontWeight: 900,
+  fontSize: 18,
+  marginBottom: 12,
+};
+
+const statsHeaderStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1.8fr 70px repeat(5, 50px)",
+  gap: 8,
+  marginBottom: 10,
+  color: "#f0e6df",
+  fontWeight: 900,
+  fontSize: 13,
+  minWidth: 560,
+};
+
+const statsRowStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1.8fr 70px repeat(5, 50px)",
+  gap: 8,
+  minWidth: 560,
+};
+
+const statInputNameStyle: CSSProperties = {
+  background: "#121216",
+  color: "#fff",
+  border: "1px solid #2d2826",
+  borderRadius: 10,
+  padding: "10px 12px",
+};
+
+const statInputPosStyle: CSSProperties = {
+  background: "#121216",
+  color: "#fff",
+  border: "1px solid #2d2826",
+  borderRadius: 10,
+  padding: "10px 8px",
+  width: "100%",
+  textAlign: "center",
+  fontWeight: 900,
+};
+
+const statInputMiniStyle: CSSProperties = {
+  background: "#121216",
+  color: "#fff",
+  border: "1px solid #2d2826",
+  borderRadius: 10,
+  padding: "10px 12px",
+  width: "100%",
+};
+
+const modalFooterStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "flex-end",
+  marginTop: 18,
 };

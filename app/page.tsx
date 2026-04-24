@@ -8,9 +8,9 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    let ativo = true;
+    let isActive = true;
 
-    async function verificarSessao() {
+    async function checkSession() {
       try {
         const supabase = createClient();
 
@@ -19,10 +19,10 @@ export default function HomePage() {
           error,
         } = await supabase.auth.getSession();
 
-        if (!ativo) return;
+        if (!isActive) return;
 
         if (error) {
-          console.error("Erro ao buscar sessão:", error);
+          console.error("Error fetching session:", error);
           router.replace("/login");
           return;
         }
@@ -34,15 +34,15 @@ export default function HomePage() {
 
         router.replace("/login");
       } catch (error) {
-        console.error("Erro inesperado ao verificar sessão:", error);
+        console.error("Unexpected error checking session:", error);
         router.replace("/login");
       }
     }
 
-    verificarSessao();
+    checkSession();
 
     return () => {
-      ativo = false;
+      isActive = false;
     };
   }, [router]);
 
@@ -58,7 +58,7 @@ export default function HomePage() {
         fontFamily: "Arial, sans-serif",
       }}
     >
-      Carregando...
+      Loading...
     </main>
   );
 }

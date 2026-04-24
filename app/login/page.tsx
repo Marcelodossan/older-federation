@@ -27,7 +27,7 @@ export default function LoginPage() {
 
   async function handleLogin() {
     if (!email || !senha) {
-      alert("Preencha email e senha");
+      alert("Please enter your email and password.");
       return;
     }
 
@@ -41,7 +41,7 @@ export default function LoginPage() {
 
       if (error || !data.user) {
         console.error(error);
-        alert("Email ou senha incorretos");
+        alert("Incorrect email or password.");
         return;
       }
 
@@ -78,58 +78,30 @@ export default function LoginPage() {
       window.location.href = "/dashboard";
     } catch (error) {
       console.error(error);
-      alert("Erro ao fazer login");
+      alert("Login failed. Please try again.");
     } finally {
       setCarregando(false);
     }
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#050505",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "white",
-        fontFamily: "Arial, sans-serif",
-        padding: 20,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          maxWidth: 1000,
-          width: "100%",
-          background: "#0b0b0b",
-          border: "1px solid #1c1c1c",
-          borderRadius: 24,
-          overflow: "hidden",
-          boxShadow: "0 0 40px rgba(255,79,216,0.15)",
-        }}
-      >
-        <div
-          style={{
-            flex: 1,
-            padding: 40,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-          }}
-        >
-          <h1 style={{ fontSize: 36, marginBottom: 10 }}>
+    <main style={pageStyle}>
+      <div style={cardStyle}>
+        <div style={leftStyle}>
+          <p style={eyebrowStyle}>EURO CUP PLATFORM</p>
+
+          <h1 style={titleStyle}>
             Welcome to <br />
-            <span style={{ color: "#ff4fd8" }}>Older Federation</span>
+            <span style={highlightStyle}>Euro Cup</span>
           </h1>
 
-          <p style={{ color: "#aaa", marginBottom: 30 }}>
-            Entre na sua conta para continuar.
+          <p style={subtitleStyle}>
+            Sign in to manage your team, join tournaments, and follow the rankings.
           </p>
 
           <input
             type="email"
-            placeholder="Seu email"
+            placeholder="Email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={inputStyle}
@@ -137,7 +109,7 @@ export default function LoginPage() {
 
           <input
             type="password"
-            placeholder="Sua senha"
+            placeholder="Password"
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
             style={{ ...inputStyle, marginTop: 14 }}
@@ -152,62 +124,128 @@ export default function LoginPage() {
             }}
             disabled={carregando}
           >
-            {carregando ? "Entrando..." : "Entrar"}
+            {carregando ? "Signing in..." : "Sign In"}
           </button>
 
-          <Link
-            href="/criar-conta"
-            style={{
-              marginTop: 18,
-              color: "#ff4fd8",
-              textDecoration: "none",
-              fontWeight: 700,
-              textAlign: "center",
-            }}
-          >
-            Criar conta
+          <Link href="/criar-conta" style={linkStyle}>
+            Create account
           </Link>
         </div>
 
-        <div
-          style={{
-            flex: 1,
-            background: "#000",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <img
-            src="/banner-login.png"
-            alt="Banner"
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
-          />
+        <div style={rightStyle}>
+          <div style={imageOverlayStyle} />
+          <img src="/banner-login.png" alt="Euro Cup login banner" style={imageStyle} />
         </div>
       </div>
     </main>
   );
 }
 
+const pageStyle: React.CSSProperties = {
+  minHeight: "100vh",
+  background:
+    "radial-gradient(circle at top left, rgba(255,106,0,0.22), transparent 32%), linear-gradient(135deg, #050B2E 0%, #070812 50%, #12051f 100%)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "#ffffff",
+  fontFamily: "Arial, sans-serif",
+  padding: 20,
+};
+
+const cardStyle: React.CSSProperties = {
+  display: "flex",
+  maxWidth: 1050,
+  width: "100%",
+  minHeight: 560,
+  background: "rgba(5, 11, 46, 0.92)",
+  border: "1px solid rgba(245, 197, 66, 0.35)",
+  borderRadius: 28,
+  overflow: "hidden",
+  boxShadow: "0 0 50px rgba(245, 197, 66, 0.18)",
+};
+
+const leftStyle: React.CSSProperties = {
+  flex: 1,
+  padding: 44,
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
+};
+
+const eyebrowStyle: React.CSSProperties = {
+  color: "#F5C542",
+  fontSize: 12,
+  fontWeight: 800,
+  letterSpacing: 2,
+  marginBottom: 14,
+};
+
+const titleStyle: React.CSSProperties = {
+  fontSize: 42,
+  lineHeight: 1.1,
+  marginBottom: 14,
+  fontWeight: 900,
+};
+
+const highlightStyle: React.CSSProperties = {
+  color: "#F5C542",
+  textShadow: "0 0 24px rgba(245,197,66,0.45)",
+};
+
+const subtitleStyle: React.CSSProperties = {
+  color: "#c7c9d9",
+  marginBottom: 30,
+  lineHeight: 1.6,
+};
+
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: 14,
-  borderRadius: 12,
-  border: "1px solid #333",
-  background: "#000",
-  color: "#fff",
+  padding: 15,
+  borderRadius: 14,
+  border: "1px solid rgba(255,255,255,0.14)",
+  background: "rgba(0,0,0,0.35)",
+  color: "#ffffff",
+  outline: "none",
 };
 
 const buttonStyle: React.CSSProperties = {
   marginTop: 20,
-  padding: 14,
-  borderRadius: 12,
+  padding: 15,
+  borderRadius: 14,
   border: "none",
-  background: "#ff4fd8",
-  color: "#fff",
+  background: "linear-gradient(135deg, #F5C542, #FF6A00)",
+  color: "#050B2E",
   fontWeight: "bold",
+};
+
+const linkStyle: React.CSSProperties = {
+  marginTop: 18,
+  color: "#F5C542",
+  textDecoration: "none",
+  fontWeight: 800,
+  textAlign: "center",
+};
+
+const rightStyle: React.CSSProperties = {
+  flex: 1,
+  background: "#000",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  position: "relative",
+};
+
+const imageOverlayStyle: React.CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  background:
+    "linear-gradient(135deg, rgba(5,11,46,0.25), rgba(255,106,0,0.22))",
+  zIndex: 1,
+};
+
+const imageStyle: React.CSSProperties = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
 };

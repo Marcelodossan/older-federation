@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type Equipe = {
+type Team = {
   id: string;
   nome: string;
   pais: string;
@@ -17,18 +17,18 @@ type Equipe = {
   titulos: number;
 };
 
-export default function EquipesPage() {
-  const [equipes, setEquipes] = useState<Equipe[]>([]);
-  const [busca, setBusca] = useState("");
-  const [paginaAtual, setPaginaAtual] = useState(1);
-  const [carregando, setCarregando] = useState(true);
+export default function TeamsPage() {
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
 
-  const itensPorPagina = 8;
+  const itemsPerPage = 8;
 
   useEffect(() => {
-    async function carregarEquipes() {
+    async function loadTeams() {
       try {
-        setCarregando(true);
+        setLoading(true);
 
         const supabase = createClient();
 
@@ -39,15 +39,15 @@ export default function EquipesPage() {
 
         if (error) {
           console.error(error);
-          setEquipes([]);
+          setTeams([]);
           return;
         }
 
-        const listaNormalizada: Equipe[] = Array.isArray(data)
+        const normalizedList: Team[] = Array.isArray(data)
           ? data.map((item: any) => ({
               id: String(item.id),
-              nome: item.nome || "Clube",
-              pais: item.pais || "Brasil",
+              nome: item.nome || "Club",
+              pais: item.pais || "Brazil",
               plataforma: item.plataforma || "PC",
               imagem: item.imagem || "",
               instagram: item.instagram || "",
@@ -58,266 +58,360 @@ export default function EquipesPage() {
             }))
           : [];
 
-        setEquipes(listaNormalizada);
+        setTeams(normalizedList);
       } catch (error) {
         console.error(error);
-        setEquipes([]);
+        setTeams([]);
       } finally {
-        setCarregando(false);
+        setLoading(false);
       }
     }
 
-    carregarEquipes();
+    loadTeams();
   }, []);
 
-  const equipesFiltradas = useMemo(() => {
-    const termo = busca.toLowerCase().trim();
+  const filteredTeams = useMemo(() => {
+    const term = search.toLowerCase().trim();
 
-    if (!termo) return equipes;
+    if (!term) return teams;
 
-    return equipes.filter((equipe) => {
+    return teams.filter((team) => {
       return (
-        String(equipe.nome || "").toLowerCase().includes(termo) ||
-        String(equipe.pais || "").toLowerCase().includes(termo) ||
-        String(equipe.plataforma || "").toLowerCase().includes(termo) ||
-        String(equipe.instagram || "").toLowerCase().includes(termo)
+        String(team.nome || "").toLowerCase().includes(term) ||
+        String(team.pais || "").toLowerCase().includes(term) ||
+        String(team.plataforma || "").toLowerCase().includes(term) ||
+        String(team.instagram || "").toLowerCase().includes(term)
       );
     });
-  }, [equipes, busca]);
+  }, [teams, search]);
 
-  const totalPaginas = Math.max(
-    1,
-    Math.ceil(equipesFiltradas.length / itensPorPagina)
-  );
+  const totalPages = Math.max(1, Math.ceil(filteredTeams.length / itemsPerPage));
 
-  const equipesPaginadas = useMemo(() => {
-    const inicio = (paginaAtual - 1) * itensPorPagina;
-    return equipesFiltradas.slice(inicio, inicio + itensPorPagina);
-  }, [equipesFiltradas, paginaAtual]);
+  const paginatedTeams = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredTeams.slice(start, start + itemsPerPage);
+  }, [filteredTeams, currentPage]);
 
   useEffect(() => {
-    setPaginaAtual(1);
-  }, [busca]);
+    setCurrentPage(1);
+  }, [search]);
 
   useEffect(() => {
-    if (paginaAtual > totalPaginas) {
-      setPaginaAtual(totalPaginas);
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
     }
-  }, [paginaAtual, totalPaginas]);
+  }, [currentPage, totalPages]);
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#000",
-        color: "#fff",
-        fontFamily: "Arial, sans-serif",
-        padding: "24px",
-      }}
-    >
-      <Link
-        href="/dashboard"
-        style={{
-          color: "#ff4fd8",
-          textDecoration: "none",
-          fontWeight: 700,
-          display: "inline-block",
-          marginBottom: 20,
-        }}
-      >
-        ← Voltar para dashboard
-      </Link>
+    <main style={pageStyle}>
+      <div style={containerStyle}>
+        <Link href="/dashboard" style={backLinkStyle}>
+          ← Back to Dashboard
+        </Link>
 
-      <div
-        style={{
-          background: "#050505",
-          border: "1px solid #111",
-          borderRadius: 20,
-          padding: 20,
-        }}
-      >
-        <h1
-          style={{
-            color: "#fff",
-            marginTop: 0,
-            marginBottom: 16,
-            fontSize: 28,
-          }}
-        >
-          Lista de Equipes
-        </h1>
+        <section style={sectionStyle}>
+          <div style={sectionHeaderStyle}>
+            <div>
+              <div style={eyebrowStyle}>EUROPA LEAGUE CLUB DIRECTORY</div>
+              <h1 style={titleStyle}>Teams List</h1>
+            </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            marginBottom: 20,
-          }}
-        >
-          <input
-            type="text"
-            placeholder="Pesquisar por nome, país, plataforma ou instagram"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            style={{
-              flex: 1,
-              minWidth: 260,
-              background: "#0b0b0b",
-              border: "1px solid #1c1c1c",
-              color: "#fff",
-              borderRadius: 12,
-              padding: "12px 14px",
-              outline: "none",
-            }}
-          />
+            <span style={countBadgeStyle}>
+              {filteredTeams.length} club{filteredTeams.length === 1 ? "" : "s"}
+            </span>
+          </div>
 
-          <span style={{ color: "#aaa", fontSize: 14 }}>
-            {equipesFiltradas.length} clube(s)
-          </span>
-        </div>
+          <div style={searchRowStyle}>
+            <input
+              type="text"
+              placeholder="Search by name, country, platform or Instagram"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
 
-        {carregando ? (
-          <p style={{ color: "#aaa" }}>Carregando equipes...</p>
-        ) : equipes.length === 0 ? (
-          <p style={{ color: "#aaa" }}>Nenhuma equipe cadastrada.</p>
-        ) : equipesFiltradas.length === 0 ? (
-          <p style={{ color: "#aaa" }}>Nenhuma equipe encontrada.</p>
-        ) : (
-          <>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                gap: 16,
-              }}
-            >
-              {equipesPaginadas.map((equipe) => (
-                <div
-                  key={equipe.id}
-                  style={{
-                    background: "#050505",
-                    border: "1px solid #141414",
-                    borderRadius: 18,
-                    overflow: "hidden",
-                    boxShadow: "0 0 0 1px rgba(255,255,255,0.02) inset",
-                  }}
+          {loading ? (
+            <div style={emptyStateStyle}>Loading teams...</div>
+          ) : teams.length === 0 ? (
+            <div style={emptyStateStyle}>No teams registered yet.</div>
+          ) : filteredTeams.length === 0 ? (
+            <div style={emptyStateStyle}>No teams found.</div>
+          ) : (
+            <>
+              <div style={gridStyle}>
+                {paginatedTeams.map((team) => (
+                  <article key={team.id} style={cardStyle}>
+                    <div style={imageWrapStyle}>
+                      <img
+                        src={team.imagem || "/team.png"}
+                        alt={team.nome}
+                        onError={(e) => {
+                          e.currentTarget.src = "/team.png";
+                        }}
+                        style={imageStyle}
+                      />
+                    </div>
+
+                    <div style={cardBodyStyle}>
+                      <h2 style={teamNameStyle}>{team.nome}</h2>
+
+                      <p style={mutedStyle}>
+                        {team.pais} • {team.plataforma}
+                      </p>
+
+                      <div style={statsGridStyle}>
+                        <div style={statBoxStyle}>
+                          <strong>{team.vitorias || 0}</strong>
+                          <span>Wins</span>
+                        </div>
+
+                        <div style={statBoxStyle}>
+                          <strong>{team.empates || 0}</strong>
+                          <span>Draws</span>
+                        </div>
+
+                        <div style={statBoxStyle}>
+                          <strong>{team.derrotas || 0}</strong>
+                          <span>Losses</span>
+                        </div>
+
+                        <div style={statBoxStyle}>
+                          <strong>{team.titulos || 0}</strong>
+                          <span>Titles</span>
+                        </div>
+                      </div>
+
+                      <Link href={`/equipes/${team.id}`} style={viewButtonStyle}>
+                        View Club
+                      </Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div style={paginationStyle}>
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  style={paginationButtonStyle(currentPage === 1)}
                 >
-                  <img
-                    src={equipe.imagem || "/team.png"}
-                    alt={equipe.nome}
-                    onError={(e) => {
-                      e.currentTarget.src = "/team.png";
-                    }}
-                    style={{
-                      width: "100%",
-                      height: 150,
-                      objectFit: "cover",
-                      display: "block",
-                      background: "#111",
-                    }}
-                  />
+                  Previous
+                </button>
 
-                  <div style={{ padding: 14 }}>
-                    <h2
-                      style={{
-                        margin: "0 0 8px 0",
-                        fontSize: 18,
-                        color: "#fff",
-                      }}
-                    >
-                      {equipe.nome}
-                    </h2>
+                <span style={pageTextStyle}>
+                  Page {currentPage} of {totalPages}
+                </span>
 
-                    <p style={{ color: "#bbb", margin: "4px 0", fontSize: 14 }}>
-                      {equipe.pais} • {equipe.plataforma}
-                    </p>
-
-                    <p style={{ color: "#bbb", margin: "4px 0", fontSize: 14 }}>
-                      V: {equipe.vitorias || 0} | E: {equipe.empates || 0} | D:{" "}
-                      {equipe.derrotas || 0}
-                    </p>
-
-                    <p
-                      style={{ color: "#bbb", margin: "4px 0 14px", fontSize: 14 }}
-                    >
-                      Títulos: {equipe.titulos || 0}
-                    </p>
-
-                    <Link
-                      href={`/equipes/${equipe.id}`}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        textAlign: "center",
-                        background: "#ff4fd8",
-                        color: "#fff",
-                        borderRadius: 12,
-                        padding: "12px 14px",
-                        fontWeight: 700,
-                        textDecoration: "none",
-                      }}
-                    >
-                      Visualizar clube
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 10,
-                marginTop: 22,
-              }}
-            >
-              <button
-                onClick={() => setPaginaAtual((prev) => Math.max(1, prev - 1))}
-                disabled={paginaAtual === 1}
-                style={{
-                  background: paginaAtual === 1 ? "#1b1b1b" : "#111",
-                  color: paginaAtual === 1 ? "#666" : "#fff",
-                  border: "1px solid #222",
-                  borderRadius: 10,
-                  padding: "10px 14px",
-                  cursor: paginaAtual === 1 ? "not-allowed" : "pointer",
-                }}
-              >
-                Anterior
-              </button>
-
-              <span style={{ color: "#fff", fontWeight: 700 }}>
-                Página {paginaAtual} de {totalPaginas}
-              </span>
-
-              <button
-                onClick={() =>
-                  setPaginaAtual((prev) => Math.min(totalPaginas, prev + 1))
-                }
-                disabled={paginaAtual === totalPaginas}
-                style={{
-                  background:
-                    paginaAtual === totalPaginas ? "#1b1b1b" : "#ff4fd8",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 10,
-                  padding: "10px 14px",
-                  cursor:
-                    paginaAtual === totalPaginas ? "not-allowed" : "pointer",
-                  fontWeight: 700,
-                }}
-              >
-                Próxima
-              </button>
-            </div>
-          </>
-        )}
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  style={paginationButtonStyle(currentPage === totalPages)}
+                >
+                  Next
+                </button>
+              </div>
+            </>
+          )}
+        </section>
       </div>
     </main>
   );
 }
+
+const ORANGE = "#ff6900";
+const PANEL = "#0b0b0f";
+const LINE = "#242024";
+const MUTED = "#bdb6b1";
+
+const pageStyle: CSSProperties = {
+  minHeight: "100vh",
+  background:
+    "radial-gradient(circle at top left, rgba(255,105,0,0.24), transparent 34%), radial-gradient(circle at top right, rgba(255,105,0,0.12), transparent 28%), #000",
+  color: "#fff",
+  fontFamily: "Arial, sans-serif",
+  padding: "24px 12px 40px",
+};
+
+const containerStyle: CSSProperties = {
+  width: "100%",
+  maxWidth: 1180,
+  margin: "0 auto",
+};
+
+const backLinkStyle: CSSProperties = {
+  color: ORANGE,
+  textDecoration: "none",
+  fontWeight: 900,
+  display: "inline-block",
+  marginBottom: 18,
+};
+
+const sectionStyle: CSSProperties = {
+  background:
+    "linear-gradient(135deg, rgba(255,105,0,0.18), rgba(5,5,5,0.98) 36%, rgba(15,15,18,1))",
+  border: "1px solid rgba(255,105,0,0.35)",
+  borderRadius: 28,
+  padding: 22,
+  boxShadow: "0 24px 80px rgba(255,105,0,0.12)",
+};
+
+const sectionHeaderStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 16,
+  flexWrap: "wrap",
+  marginBottom: 20,
+};
+
+const eyebrowStyle: CSSProperties = {
+  color: ORANGE,
+  fontWeight: 900,
+  letterSpacing: "0.14em",
+  fontSize: 12,
+  marginBottom: 8,
+};
+
+const titleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: "clamp(32px, 5vw, 52px)",
+  lineHeight: 1,
+};
+
+const countBadgeStyle: CSSProperties = {
+  border: "1px solid rgba(255,105,0,0.55)",
+  color: ORANGE,
+  borderRadius: 999,
+  padding: "8px 13px",
+  fontWeight: 900,
+  fontSize: 12,
+  textTransform: "uppercase",
+};
+
+const searchRowStyle: CSSProperties = {
+  marginBottom: 20,
+};
+
+const inputStyle: CSSProperties = {
+  width: "100%",
+  background: "#09090b",
+  border: "1px solid #2d2826",
+  color: "#fff",
+  borderRadius: 14,
+  padding: "13px 15px",
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+const emptyStateStyle: CSSProperties = {
+  color: MUTED,
+  background: "rgba(255,255,255,0.03)",
+  border: "1px dashed rgba(255,105,0,0.25)",
+  borderRadius: 16,
+  padding: 18,
+};
+
+const gridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gap: 16,
+};
+
+const cardStyle: CSSProperties = {
+  background: PANEL,
+  border: `1px solid ${LINE}`,
+  borderRadius: 22,
+  overflow: "hidden",
+  boxShadow: "0 12px 34px rgba(0,0,0,0.28)",
+};
+
+const imageWrapStyle: CSSProperties = {
+  width: "100%",
+  height: 155,
+  background: "#111",
+  borderBottom: "1px solid rgba(255,105,0,0.18)",
+};
+
+const imageStyle: CSSProperties = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+  display: "block",
+};
+
+const cardBodyStyle: CSSProperties = {
+  padding: 16,
+};
+
+const teamNameStyle: CSSProperties = {
+  margin: "0 0 8px",
+  fontSize: 20,
+  color: "#fff",
+};
+
+const mutedStyle: CSSProperties = {
+  color: MUTED,
+  margin: "0 0 14px",
+  fontSize: 14,
+};
+
+const statsGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(4, 1fr)",
+  gap: 8,
+  marginBottom: 15,
+};
+
+const statBoxStyle: CSSProperties = {
+  background: "rgba(255,255,255,0.03)",
+  border: "1px solid rgba(255,105,0,0.18)",
+  borderRadius: 13,
+  padding: "9px 6px",
+  textAlign: "center",
+  display: "grid",
+  gap: 3,
+  color: MUTED,
+  fontSize: 11,
+};
+
+const viewButtonStyle: CSSProperties = {
+  display: "block",
+  width: "100%",
+  textAlign: "center",
+  background: ORANGE,
+  color: "#080808",
+  borderRadius: 13,
+  padding: "12px 14px",
+  fontWeight: 900,
+  textDecoration: "none",
+  boxSizing: "border-box",
+};
+
+const paginationStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  gap: 10,
+  marginTop: 24,
+  flexWrap: "wrap",
+};
+
+function paginationButtonStyle(disabled: boolean): CSSProperties {
+  return {
+    background: disabled ? "#151515" : ORANGE,
+    color: disabled ? "#666" : "#080808",
+    border: disabled ? "1px solid #252525" : "none",
+    borderRadius: 12,
+    padding: "10px 14px",
+    cursor: disabled ? "not-allowed" : "pointer",
+    fontWeight: 900,
+  };
+}
+
+const pageTextStyle: CSSProperties = {
+  color: "#fff",
+  fontWeight: 900,
+};

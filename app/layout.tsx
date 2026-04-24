@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Older Federation",
-  description: "Plataforma de campeonatos, clubes e jogadores da Older Federation",
+  title: "Euro Cup",
+  description: "Euro Cup Tournament Platform",
 };
 
 export default function RootLayout({

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const ADMIN_EMAIL = "marcelo.dos.santos.filho03@gmail.com";
@@ -27,12 +27,10 @@ type UsuarioLogado = {
 };
 
 function formatarFormato(formato?: string) {
-  if (!formato) return "Formato não informado";
-  if (formato === "eliminatorias") return "Eliminatórias";
-  if (formato === "pontos-corridos") return "Pontos corridos";
-  if (formato === "pontos-corridos-eliminatorias") {
-    return "Pontos corridos + eliminatórias";
-  }
+  if (!formato) return "Format not informed";
+  if (formato === "eliminatorias") return "Knockout";
+  if (formato === "pontos-corridos") return "League Format";
+  if (formato === "pontos-corridos-eliminatorias") return "League + Knockout";
   return formato;
 }
 
@@ -54,22 +52,20 @@ export default function CampeonatosPage() {
           error: authError,
         } = await supabase.auth.getUser();
 
-        if (authError) {
-          console.error(authError);
-        }
+        if (authError) console.error(authError);
 
-        const usuarioAtual: UsuarioLogado | null = user
-          ? {
-              id: user.id,
-              nome: user.user_metadata?.nome || user.email || "Usuário",
-              email: user.email || "",
-              isAdmin:
-                String(user.email || "").toLowerCase().trim() ===
-                ADMIN_EMAIL.toLowerCase(),
-            }
-          : null;
-
-        setUsuario(usuarioAtual);
+        setUsuario(
+          user
+            ? {
+                id: user.id,
+                nome: user.user_metadata?.nome || user.email || "User",
+                email: user.email || "",
+                isAdmin:
+                  String(user.email || "").toLowerCase().trim() ===
+                  ADMIN_EMAIL.toLowerCase(),
+              }
+            : null
+        );
 
         const { data, error } = await supabase
           .from("campeonatos")
@@ -85,7 +81,7 @@ export default function CampeonatosPage() {
         const lista: Campeonato[] = Array.isArray(data)
           ? data.map((item: any) => ({
               id: String(item.id),
-              titulo: item.titulo || "Campeonato",
+              titulo: item.titulo || "Tournament",
               imagem: item.imagem || "",
               numeroParticipantes: Number(item.numeroparticipantes || 0),
               formato: item.formato,
@@ -120,228 +116,240 @@ export default function CampeonatosPage() {
   }, [campeonatos, busca]);
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#000",
-        color: "white",
-        fontFamily: "Arial, sans-serif",
-        padding: "20px",
-      }}
-    >
-      <div
-        style={{
-          marginBottom: "20px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <Link
-          href="/dashboard"
-          style={{
-            color: "#ff4fd8",
-            textDecoration: "none",
-            fontSize: "14px",
-            fontWeight: 700,
-          }}
-        >
-          ← Voltar para dashboard
-        </Link>
-
-        {usuario?.isAdmin && (
-          <Link
-            href="/criar-campeonato"
-            style={{
-              background: "#ff4fd8",
-              color: "#fff",
-              textDecoration: "none",
-              padding: "10px 14px",
-              borderRadius: "12px",
-              fontWeight: 700,
-            }}
-          >
-            Criar campeonato
+    <main style={pageStyle}>
+      <div style={containerStyle}>
+        <div style={topBarStyle}>
+          <Link href="/dashboard" style={backLinkStyle}>
+            ← Back to Dashboard
           </Link>
-        )}
-      </div>
 
-      <div
-        style={{
-          background: "#0d0d0d",
-          border: "1px solid #1f1f1f",
-          borderRadius: "18px",
-          padding: "12px",
-        }}
-      >
-        <div
-          style={{
-            background: "#050505",
-            border: "1px solid #262626",
-            borderRadius: "14px",
-            padding: "18px 14px 22px 14px",
-            minHeight: "500px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-              marginBottom: "20px",
-            }}
-          >
-            <h1
-              style={{
-                fontSize: "28px",
-                margin: 0,
-              }}
-            >
-              Lista de Campeonatos
-            </h1>
+          {usuario?.isAdmin && (
+            <Link href="/criar-campeonato" style={createButtonStyle}>
+              Create Tournament
+            </Link>
+          )}
+        </div>
+
+        <section style={sectionStyle}>
+          <div style={headerStyle}>
+            <div>
+              <div style={eyebrowStyle}>EUROPA LEAGUE TOURNAMENT CENTER</div>
+              <h1 style={titleStyle}>Tournament List</h1>
+            </div>
 
             <input
               type="text"
-              placeholder="Pesquisar campeonato"
+              placeholder="Search tournament"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              style={{
-                minWidth: 260,
-                background: "#0b0b0b",
-                border: "1px solid #1c1c1c",
-                color: "#fff",
-                borderRadius: 12,
-                padding: "12px 14px",
-                outline: "none",
-              }}
+              style={inputStyle}
             />
           </div>
 
           {carregando ? (
-            <div style={{ color: "#888" }}>Carregando campeonatos...</div>
+            <div style={emptyStateStyle}>Loading tournaments...</div>
           ) : campeonatosFiltrados.length === 0 ? (
-            <div
-              style={{
-                padding: 18,
-                borderRadius: 12,
-                border: "1px solid #1f1f1f",
-                background: "#0b0b0b",
-                color: "#888",
-              }}
-            >
-              Nenhum campeonato cadastrado ainda.
-            </div>
+            <div style={emptyStateStyle}>No tournaments registered yet.</div>
           ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-                gap: "20px",
-              }}
-            >
+            <div style={gridStyle}>
               {campeonatosFiltrados.map((campeonato) => (
                 <Link
                   key={campeonato.id}
                   href={`/campeonatos/${campeonato.id}`}
-                  style={{
-                    textDecoration: "none",
-                    color: "inherit",
-                  }}
+                  style={{ textDecoration: "none", color: "inherit" }}
                 >
-                  <div
-                    style={{
-                      minHeight: "260px",
-                      background: "#0b0b0b",
-                      borderRadius: "14px",
-                      border: "1px solid #1f1f1f",
-                      overflow: "hidden",
-                      transition: "0.2s",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: "100%",
-                        height: 150,
-                        background: "#111",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
+                  <article style={cardStyle}>
+                    <div style={imageBoxStyle}>
                       {campeonato.imagem ? (
                         <img
                           src={campeonato.imagem}
                           alt={campeonato.titulo}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                          }}
+                          style={imageStyle}
                         />
                       ) : (
-                        <span style={{ color: "#777", fontSize: 12 }}>
-                          Sem imagem
-                        </span>
+                        <span style={mutedStyle}>No image</span>
                       )}
                     </div>
 
-                    <div style={{ padding: 14 }}>
-                      <div
-                        style={{
-                          fontSize: 17,
-                          fontWeight: 700,
-                          color: "#fff",
-                          marginBottom: 8,
-                        }}
-                      >
-                        {campeonato.titulo}
-                      </div>
+                    <div style={cardBodyStyle}>
+                      <h2 style={cardTitleStyle}>{campeonato.titulo}</h2>
 
-                      <div
-                        style={{
-                          color: "#bdbdbd",
-                          fontSize: 14,
-                          marginBottom: 6,
-                        }}
-                      >
+                      <div style={cardMetaStyle}>
                         {formatarFormato(campeonato.formato)}
                       </div>
 
-                      <div
-                        style={{
-                          color: "#bdbdbd",
-                          fontSize: 14,
-                          marginBottom: 10,
-                        }}
-                      >
-                        Participantes: {campeonato.numeroParticipantes || 0}
+                      <div style={cardMetaStyle}>
+                        Participants: {campeonato.numeroParticipantes || 0}
                       </div>
 
-                      <div
-                        style={{
-                          display: "inline-block",
-                          background: "#ff4fd8",
-                          color: "#fff",
-                          borderRadius: 10,
-                          padding: "8px 12px",
-                          fontWeight: 700,
-                          fontSize: 13,
-                        }}
-                      >
-                        Abrir campeonato
-                      </div>
+                      <div style={openButtonStyle}>Open Tournament</div>
                     </div>
-                  </div>
+                  </article>
                 </Link>
               ))}
             </div>
           )}
-        </div>
+        </section>
       </div>
     </main>
   );
 }
+
+const ORANGE = "#ff6900";
+const PANEL = "#0b0b0f";
+const LINE = "#242024";
+const MUTED = "#bdb6b1";
+
+const pageStyle: CSSProperties = {
+  minHeight: "100vh",
+  background:
+    "radial-gradient(circle at top left, rgba(255,105,0,0.24), transparent 34%), radial-gradient(circle at top right, rgba(255,105,0,0.12), transparent 28%), #000",
+  color: "#fff",
+  fontFamily: "Arial, sans-serif",
+  padding: "24px 12px 40px",
+};
+
+const containerStyle: CSSProperties = {
+  width: "100%",
+  maxWidth: 1280,
+  margin: "0 auto",
+};
+
+const topBarStyle: CSSProperties = {
+  marginBottom: 20,
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+  flexWrap: "wrap",
+};
+
+const backLinkStyle: CSSProperties = {
+  color: ORANGE,
+  textDecoration: "none",
+  fontSize: 14,
+  fontWeight: 900,
+};
+
+const createButtonStyle: CSSProperties = {
+  background: ORANGE,
+  color: "#080808",
+  textDecoration: "none",
+  padding: "11px 15px",
+  borderRadius: 13,
+  fontWeight: 900,
+};
+
+const sectionStyle: CSSProperties = {
+  background:
+    "linear-gradient(135deg, rgba(255,105,0,0.18), rgba(5,5,5,0.98) 36%, rgba(15,15,18,1))",
+  border: "1px solid rgba(255,105,0,0.35)",
+  borderRadius: 28,
+  padding: 22,
+  boxShadow: "0 24px 80px rgba(255,105,0,0.12)",
+};
+
+const headerStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 16,
+  flexWrap: "wrap",
+  marginBottom: 22,
+};
+
+const eyebrowStyle: CSSProperties = {
+  color: ORANGE,
+  fontWeight: 900,
+  letterSpacing: "0.14em",
+  fontSize: 12,
+  marginBottom: 8,
+};
+
+const titleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: "clamp(32px, 5vw, 52px)",
+  lineHeight: 1,
+};
+
+const inputStyle: CSSProperties = {
+  minWidth: 260,
+  background: "#09090b",
+  border: "1px solid #2d2826",
+  color: "#fff",
+  borderRadius: 14,
+  padding: "13px 15px",
+  outline: "none",
+};
+
+const emptyStateStyle: CSSProperties = {
+  color: MUTED,
+  background: "rgba(255,255,255,0.03)",
+  border: "1px dashed rgba(255,105,0,0.25)",
+  borderRadius: 16,
+  padding: 18,
+};
+
+const gridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+  gap: 18,
+};
+
+const cardStyle: CSSProperties = {
+  minHeight: 260,
+  background: PANEL,
+  borderRadius: 22,
+  border: `1px solid ${LINE}`,
+  overflow: "hidden",
+  boxShadow: "0 12px 34px rgba(0,0,0,0.28)",
+};
+
+const imageBoxStyle: CSSProperties = {
+  width: "100%",
+  height: 155,
+  background: "#111",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderBottom: "1px solid rgba(255,105,0,0.18)",
+};
+
+const imageStyle: CSSProperties = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+};
+
+const cardBodyStyle: CSSProperties = {
+  padding: 15,
+};
+
+const cardTitleStyle: CSSProperties = {
+  fontSize: 18,
+  fontWeight: 900,
+  color: "#fff",
+  margin: "0 0 10px",
+};
+
+const cardMetaStyle: CSSProperties = {
+  color: MUTED,
+  fontSize: 14,
+  marginBottom: 7,
+};
+
+const openButtonStyle: CSSProperties = {
+  display: "inline-block",
+  background: ORANGE,
+  color: "#080808",
+  borderRadius: 12,
+  padding: "9px 12px",
+  fontWeight: 900,
+  fontSize: 13,
+  marginTop: 6,
+};
+
+const mutedStyle: CSSProperties = {
+  color: MUTED,
+  fontSize: 12,
+};
