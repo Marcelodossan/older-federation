@@ -1293,7 +1293,7 @@ export default function CampeonatoDetalhePage() {
 
     return ordenadas.slice(0, 15).map((item, index) => ({
       posicao: index + 1,
-      jogador: item.jogador,
+      jogador: item.jogadorId,
       equipe: item.equipe,
       pontos: Number(item.pontos.toFixed(1)),
       gols: item.gols,
