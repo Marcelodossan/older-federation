@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 
 type JogadorElenco = {
   jogadorId: string;
+  idOnline?: string;
   nome: string;
   nomeCompleto?: string;
   posicao: string;
@@ -130,6 +131,7 @@ type RankingRow = {
 type RankingPlayerStats = {
   jogadorId: string;
   jogador: string;
+  idOnline: string;
   equipe: string;
   posicao: string;
   gols: number;
@@ -534,7 +536,12 @@ function buildTabelaGeralPontosCorridos(campeonato: Campeonato, times: Equipe[])
 function getMapaJogadoresDoCampeonato(times: Equipe[]) {
   const mapa = new Map<
     string,
-    { equipeNome: string; posicao: string; jogadorNome: string }
+    {
+      equipeNome: string;
+      posicao: string;
+      jogadorNome: string;
+      idOnline: string;
+    }
   >();
 
   times.forEach((time) => {
@@ -543,6 +550,7 @@ function getMapaJogadoresDoCampeonato(times: Equipe[]) {
         equipeNome: time.nome,
         posicao: getPosicaoExibicao(jogador.posicao || ""),
         jogadorNome: jogador.nome,
+        idOnline: jogador.idOnline || jogador.nome,
       });
     });
   });
@@ -556,6 +564,7 @@ function getAllPlayerStats(campeonato: Campeonato, times: Equipe[]) {
     {
       jogadorId: string;
       jogador: string;
+      idOnline: string;
       equipe: string;
       posicao: string;
       gols: number;
@@ -582,6 +591,7 @@ function getAllPlayerStats(campeonato: Campeonato, times: Equipe[]) {
             mapa.get(chave) || {
               jogadorId: String(item.jogadorId),
               jogador: base.jogadorNome || item.jogadorNome,
+              idOnline: base.idOnline || base.jogadorNome || item.jogadorNome,
               equipe: base.equipeNome,
               posicao: base.posicao || item.posicao || "",
               gols: 0,
@@ -1293,7 +1303,7 @@ export default function CampeonatoDetalhePage() {
 
     return ordenadas.slice(0, 15).map((item, index) => ({
       posicao: index + 1,
-      jogador: item.jogadorId,
+      jogador: item.idOnline || item.jogador,
       equipe: item.equipe,
       pontos: Number(item.pontos.toFixed(1)),
       gols: item.gols,
@@ -1615,7 +1625,7 @@ export default function CampeonatoDetalhePage() {
       return (
         <tr style={{ background: "#0b0b0b" }}>
           <th style={thStyle}>#</th>
-          <th style={thStyle}>Jogadores</th>
+          <th style={thStyle}>ID Online</th>
           <th style={thStyle}>Equipe</th>
           <th style={thStyle}>Gols</th>
         </tr>
@@ -1626,7 +1636,7 @@ export default function CampeonatoDetalhePage() {
       return (
         <tr style={{ background: "#0b0b0b" }}>
           <th style={thStyle}>#</th>
-          <th style={thStyle}>Jogadores</th>
+          <th style={thStyle}>ID Online</th>
           <th style={thStyle}>Equipe</th>
           <th style={thStyle}>Assistências</th>
         </tr>
@@ -1636,7 +1646,7 @@ export default function CampeonatoDetalhePage() {
     return (
       <tr style={{ background: "#0b0b0b" }}>
         <th style={thStyle}>#</th>
-        <th style={thStyle}>Jogadores</th>
+        <th style={thStyle}>ID Online</th>
         <th style={thStyle}>Equipe</th>
         <th style={thStyle}>PTS</th>
         <th style={thStyle}>Gols</th>
