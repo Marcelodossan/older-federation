@@ -71,12 +71,15 @@ type GrupoData = {
   timeIds: string[];
 };
 
+type CampeonatoEstilo = "ida" | "ida-volta";
+
 type Campeonato = {
   id: string;
   titulo: string;
   imagem: string;
   numeroParticipantes: number;
   formato: CampeonatoFormato;
+  estilo?: CampeonatoEstilo;
   criadoPor: string;
   dataCriacao: string;
   timeIds?: string[];
@@ -188,6 +191,7 @@ function normalizarCampeonato(item: any): Campeonato {
     imagem: item.imagem || "",
     numeroParticipantes: Number(item.numeroparticipantes || 0),
     formato: item.formato || "eliminatorias",
+    estilo: item.estilo || "ida",
     criadoPor: item.criadopor || "",
     dataCriacao: item.datacriacao || item.created_at || "",
     timeIds: Array.isArray(item.timeids)
@@ -319,10 +323,53 @@ function gerarEstatisticasVazias(equipe: Equipe | null): EstatisticaJogador[] {
   }));
 }
 
+function criarConfrontoMataMata(
+  faseNome: string,
+  rodada: number,
+  mandante: Equipe,
+  visitante: Equipe,
+  idaVolta: boolean
+): Partida[] {
+  const ida: Partida = {
+    id: uid(),
+    fase: "mata-mata",
+    faseNome,
+    rodada,
+    mandanteId: String(mandante.id),
+    visitanteId: String(visitante.id),
+    golsMandante: 0,
+    golsVisitante: 0,
+    status: "pendente",
+    data: "",
+    estatisticasMandante: gerarEstatisticasVazias(mandante),
+    estatisticasVisitante: gerarEstatisticasVazias(visitante),
+  };
+
+  if (!idaVolta) return [ida];
+
+  const volta: Partida = {
+    id: uid(),
+    fase: "mata-mata",
+    faseNome,
+    rodada,
+    mandanteId: String(visitante.id),
+    visitanteId: String(mandante.id),
+    golsMandante: 0,
+    golsVisitante: 0,
+    status: "pendente",
+    data: "",
+    estatisticasMandante: gerarEstatisticasVazias(visitante),
+    estatisticasVisitante: gerarEstatisticasVazias(mandante),
+  };
+
+  return [ida, volta];
+}
+
 function criarPartidasRoundRobin(
   grupoNome: string,
   ids: string[],
-  times: Equipe[]
+  times: Equipe[],
+  idaVolta: boolean
 ): Partida[] {
   if (ids.length < 2) return [];
 
@@ -359,6 +406,23 @@ function criarPartidasRoundRobin(
         estatisticasMandante: gerarEstatisticasVazias(mandante),
         estatisticasVisitante: gerarEstatisticasVazias(visitante),
       });
+
+      if (idaVolta) {
+        partidas.push({
+          id: uid(),
+          fase: "grupos",
+          grupoNome,
+          rodada: rodada + rodadas,
+          mandanteId: visitanteId,
+          visitanteId: mandanteId,
+          golsMandante: 0,
+          golsVisitante: 0,
+          status: "pendente",
+          data: "",
+          estatisticasMandante: gerarEstatisticasVazias(visitante),
+          estatisticasVisitante: gerarEstatisticasVazias(mandante),
+        });
+      }
     }
 
     const fixo = lista[0];
@@ -800,20 +864,15 @@ function gerarMataMataPuro(
     const visitante = times[i + 1];
     if (!mandante || !visitante) continue;
 
-    partidas.push({
-      id: uid(),
-      fase: "mata-mata",
-      faseNome,
-      rodada: 1,
-      mandanteId: String(mandante.id),
-      visitanteId: String(visitante.id),
-      golsMandante: 0,
-      golsVisitante: 0,
-      status: "pendente",
-      data: "",
-      estatisticasMandante: gerarEstatisticasVazias(mandante),
-      estatisticasVisitante: gerarEstatisticasVazias(visitante),
-    });
+    partidas.push(
+  ...criarConfrontoMataMata(
+    faseNome,
+    1,
+    mandante,
+    visitante,
+    campeonato.estilo === "ida-volta"
+  )
+);
   }
 
   return {
@@ -1347,6 +1406,7 @@ export default function CampeonatoDetalhePage() {
         imagem: campeonatoAtualizado.imagem || "",
         numeroparticipantes: campeonatoAtualizado.numeroParticipantes,
         formato: campeonatoAtualizado.formato,
+        estilo: campeonatoAtualizado.estilo || "ida",
         criadopor: campeonatoAtualizado.criadoPor || "",
         datacriacao: campeonatoAtualizado.dataCriacao || "",
         timeids: campeonatoAtualizado.timeIds || [],
@@ -1518,9 +1578,16 @@ export default function CampeonatoDetalhePage() {
       return;
     }
 
-    const partidasGrupos = gruposData.flatMap((grupo) =>
-      criarPartidasRoundRobin(grupo.nome, grupo.timeIds, timesNoCampeonato)
-    );
+    const idaVolta = campeonato.estilo === "ida-volta";
+
+const partidasGrupos = gruposData.flatMap((grupo) =>
+  criarPartidasRoundRobin(
+    grupo.nome,
+    grupo.timeIds,
+    timesNoCampeonato,
+    idaVolta
+  )
+);
 
     const atualizado: Campeonato = {
       ...campeonato,

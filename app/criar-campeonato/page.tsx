@@ -5,15 +5,20 @@ import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+type CampeonatoFormato =
+  | "eliminatorias"
+  | "pontos-corridos"
+  | "pontos-corridos-eliminatorias";
+
+type CampeonatoEstilo = "ida" | "ida-volta";
+
 type Campeonato = {
   id: string;
   titulo: string;
   imagem: string;
   numeroParticipantes: number;
-  formato:
-    | "eliminatorias"
-    | "pontos-corridos"
-    | "pontos-corridos-eliminatorias";
+  formato: CampeonatoFormato;
+  estilo: CampeonatoEstilo;
   criadoPor: string;
   dataCriacao: string;
   timeIds?: string[];
@@ -86,13 +91,18 @@ function tamanhoAproximadoEmMB(texto: string) {
 export default function CriarCampeonatoPage() {
   const router = useRouter();
 
-  const [jogadorLogado, setJogadorLogado] = useState<JogadorLogado | null>(null);
+  const [jogadorLogado, setJogadorLogado] = useState<JogadorLogado | null>(
+    null
+  );
   const [titulo, setTitulo] = useState("");
   const [imagem, setImagem] = useState("");
   const [numeroParticipantes, setNumeroParticipantes] = useState("");
-  const [formato, setFormato] = useState<
-    "eliminatorias" | "pontos-corridos" | "pontos-corridos-eliminatorias"
-  >("eliminatorias");
+
+  const [formato, setFormato] =
+    useState<CampeonatoFormato>("eliminatorias");
+
+  const [estilo, setEstilo] = useState<CampeonatoEstilo>("ida");
+
   const [mensagem, setMensagem] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -220,7 +230,9 @@ export default function CriarCampeonatoPage() {
 
       if (erroBusca) {
         console.error(erroBusca);
-        setMensagem(`Erro ao validar campeonatos existentes: ${erroBusca.message}`);
+        setMensagem(
+          `Erro ao validar campeonatos existentes: ${erroBusca.message}`
+        );
         return;
       }
 
@@ -240,6 +252,7 @@ export default function CriarCampeonatoPage() {
         imagem,
         numeroParticipantes: participantesFinal,
         formato,
+        estilo,
         criadoPor: user.id,
         dataCriacao: new Date().toISOString(),
         timeIds: [],
@@ -253,6 +266,7 @@ export default function CriarCampeonatoPage() {
         imagem: novoCampeonato.imagem,
         numeroparticipantes: novoCampeonato.numeroParticipantes,
         formato: novoCampeonato.formato,
+        estilo: novoCampeonato.estilo,
         criadopor: novoCampeonato.criadoPor,
         datacriacao: novoCampeonato.dataCriacao,
         timeids: novoCampeonato.timeIds || [],
@@ -384,14 +398,7 @@ export default function CriarCampeonatoPage() {
             </label>
             <select
               value={formato}
-              onChange={(e) =>
-                setFormato(
-                  e.target.value as
-                    | "eliminatorias"
-                    | "pontos-corridos"
-                    | "pontos-corridos-eliminatorias"
-                )
-              }
+              onChange={(e) => setFormato(e.target.value as CampeonatoFormato)}
               style={inputStyle}
             >
               <option value="eliminatorias">Eliminatórias</option>
@@ -399,6 +406,20 @@ export default function CriarCampeonatoPage() {
               <option value="pontos-corridos-eliminatorias">
                 Pontos corridos + eliminatórias
               </option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: "block", marginBottom: 8 }}>
+              Tipo de confronto
+            </label>
+            <select
+              value={estilo}
+              onChange={(e) => setEstilo(e.target.value as CampeonatoEstilo)}
+              style={inputStyle}
+            >
+              <option value="ida">Só ida</option>
+              <option value="ida-volta">Ida e volta</option>
             </select>
           </div>
 
