@@ -312,8 +312,8 @@ function jogadorPassaNoFiltroDeRanking(
 
 function gerarEstatisticasVazias(equipe: Equipe | null): EstatisticaJogador[] {
   return (equipe?.elenco || []).map((jogador) => ({
-    jogadorId: String(jogador.jogadorId),
-    jogadorNome: jogador.nome,
+    jogadorId: String(jogador.jogadorId || jogador.idOnline || jogador.nome),
+    jogadorNome: jogador.idOnline || jogador.nome,
     posicao: jogador.posicao || "",
     gols: 0,
     assistencias: 0,
@@ -321,6 +321,33 @@ function gerarEstatisticasVazias(equipe: Equipe | null): EstatisticaJogador[] {
     cartoes: 0,
     defesas: 0,
   }));
+}
+
+function sincronizarEstatisticasComElenco(
+  equipe: Equipe | null,
+  estatisticasAtuais?: EstatisticaJogador[]
+): EstatisticaJogador[] {
+  const atuais = Array.isArray(estatisticasAtuais) ? estatisticasAtuais : [];
+
+  const mapaAtuais = new Map(
+    atuais.map((stat) => [String(stat.jogadorId), stat])
+  );
+
+  return (equipe?.elenco || []).map((jogador) => {
+    const jogadorId = String(jogador.jogadorId || jogador.idOnline || jogador.nome);
+    const existente = mapaAtuais.get(jogadorId);
+
+    return {
+      jogadorId,
+      jogadorNome: jogador.idOnline || jogador.nome,
+      posicao: getPosicaoExibicao(jogador.posicao || existente?.posicao || ""),
+      gols: Number(existente?.gols || 0),
+      assistencias: Number(existente?.assistencias || 0),
+      desarmes: Number(existente?.desarmes || 0),
+      cartoes: Number(existente?.cartoes || 0),
+      defesas: Number(existente?.defesas || 0),
+    };
+  });
 }
 
 function criarConfrontoMataMata(
@@ -1603,34 +1630,36 @@ const partidasGrupos = gruposData.flatMap((grupo) =>
   }
 
   function abrirPartida(partida: Partida) {
-    const mandante =
-      timesNoCampeonato.find((t) => String(t.id) === String(partida.mandanteId)) ||
-      null;
-    const visitante =
-      timesNoCampeonato.find(
-        (t) => String(t.id) === String(partida.visitanteId)
-      ) || null;
+  const mandante =
+    timesNoCampeonato.find((t) => String(t.id) === String(partida.mandanteId)) ||
+    null;
 
-    setPartidaSelecionada(partida);
-    setPlacarMandanteEdicao(partida.golsMandante || 0);
-    setPlacarVisitanteEdicao(partida.golsVisitante || 0);
-    setStatsMandanteEdicao(
-      partida.estatisticasMandante?.length
-        ? partida.estatisticasMandante.map((item) => ({
-            ...item,
-            posicao: getPosicaoExibicao(item.posicao),
-          }))
-        : gerarEstatisticasVazias(mandante)
-    );
-    setStatsVisitanteEdicao(
-      partida.estatisticasVisitante?.length
-        ? partida.estatisticasVisitante.map((item) => ({
-            ...item,
-            posicao: getPosicaoExibicao(item.posicao),
-          }))
-        : gerarEstatisticasVazias(visitante)
-    );
-  }
+  const visitante =
+    timesNoCampeonato.find(
+      (t) => String(t.id) === String(partida.visitanteId)
+    ) || null;
+
+  const statsMandanteAtualizadas = sincronizarEstatisticasComElenco(
+    mandante,
+    partida.estatisticasMandante
+  );
+
+  const statsVisitanteAtualizadas = sincronizarEstatisticasComElenco(
+    visitante,
+    partida.estatisticasVisitante
+  );
+
+  setPartidaSelecionada({
+    ...partida,
+    estatisticasMandante: statsMandanteAtualizadas,
+    estatisticasVisitante: statsVisitanteAtualizadas,
+  });
+
+  setPlacarMandanteEdicao(partida.golsMandante || 0);
+  setPlacarVisitanteEdicao(partida.golsVisitante || 0);
+  setStatsMandanteEdicao(statsMandanteAtualizadas);
+  setStatsVisitanteEdicao(statsVisitanteAtualizadas);
+}
 
   function atualizarStat(
     lado: "mandante" | "visitante",
